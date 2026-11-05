@@ -104,3 +104,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     chrome.tabs.create({ url: appUrl });
   });
 });
+

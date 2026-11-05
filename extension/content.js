@@ -14,21 +14,38 @@
           profile = 'General Role',
           jaf = '',
           status = 'Applied',
-          date = '';
+          processStages = '';
 
-        // Check if first column is serial number (e.g. 1, 2, 3...)
+        // Standard IIT Bombay placement portal table column layout:
+        // cells[0]: Serial No (e.g. "1")
+        // cells[1]: Company Name (e.g. "NK Securities Research Private Limited")
+        // cells[2]: Profile ID / JAF index (e.g. "3")
+        // cells[3]: Designation / Job Role (e.g. "AI/ML Researcher")
+        // cells[4]: Stages (e.g. "Applied\nTechnical test\n...")
         if (/^\d+$/.test(cells[0])) {
           company = cells[1] || '';
-          profile = cells[2] || 'General Role';
-          jaf = cells[3] || '';
-          status = cells[4] || 'Applied';
-          date = cells[5] || '';
+          const col2 = cells[2] || '';
+          const col3 = cells[3] || '';
+          processStages = cells[4] || '';
+
+          if (/^\d+$/.test(col2) && col3) {
+            profile = col3;
+            jaf = `Profile #${col2}`;
+          } else {
+            profile = col2 || col3 || 'General Role';
+            jaf = col3 || '';
+          }
         } else {
           company = cells[0] || '';
           profile = cells[1] || 'General Role';
           jaf = cells[2] || '';
-          status = cells[3] || 'Applied';
-          date = cells[4] || '';
+          processStages = cells[3] || '';
+        }
+
+        // Clean up status and stages
+        if (processStages) {
+          const firstLine = processStages.split('\n')[0].trim();
+          status = normalizeStatus(firstLine || processStages);
         }
 
         // Filter out header rows
@@ -37,15 +54,27 @@
           !company.toLowerCase().includes('company') &&
           !company.toLowerCase().includes('sr.')
         ) {
+          const comments = [];
+          if (processStages && processStages.includes('\n')) {
+            const stagesList = processStages.split('\n').map((s) => s.trim()).filter(Boolean);
+            if (stagesList.length > 1) {
+              comments.push({
+                id: `stages-${Date.now()}-${idx}`,
+                text: `Hiring Process: ${stagesList.join(' ➔ ')}`,
+                createdAt: new Date().toISOString(),
+              });
+            }
+          }
+
           items.push({
             id: `iitb-${Date.now()}-${idx}`,
             companyName: company.replace(/\s+/g, ' ').trim(),
             profile: profile.replace(/\s+/g, ' ').trim(),
             jafId: jaf.trim(),
-            status: normalizeStatus(status),
-            appliedDate: date.trim(),
+            status: status,
+            appliedDate: new Date().toISOString().slice(0, 10),
             testGiven: false,
-            comments: [],
+            comments: comments,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           });
@@ -69,12 +98,10 @@
 
   // Detect student LDAP ID / Roll Number from page content
   function detectStudentLdap() {
-    // Check common header / profile text
     const pageText = document.body.innerText || '';
-    // Look for IITB roll number pattern: e.g. 210050012, 22b090034, 20d070014, etc.
     const rollMatch = pageText.match(/\b([1-2][0-9]{8}|[1-2][0-9][a-zA-Z][0-9]{6})\b/i);
     if (rollMatch) {
-      return rollMatch[1];
+      return rollMatch[1].toLowerCase();
     }
     return '';
   }
@@ -87,22 +114,21 @@
     widget.id = 'iitb-sync-floating-widget';
     widget.style.cssText = `
       position: fixed;
-      bottom: 24px;
-      right: 24px;
+      bottom: 20px;
+      right: 20px;
       z-index: 999999;
       background: #ffffff;
-      border: 1px solid #0284c7;
+      border: 1.5px solid #0284c7;
       border-radius: 14px;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-      padding: 14px 18px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.25), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+      padding: 14px 16px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       font-size: 13px;
       color: #0f172a;
       display: flex;
       flex-direction: column;
       gap: 10px;
-      max-width: 320px;
-      animation: iitbFadeIn 0.3s ease-out;
+      width: 320px;
     `;
 
     const count = companies.length;
@@ -114,69 +140,112 @@
           <span style="font-size: 16px;">🎓</span>
           <strong style="color: #0369a1; font-weight: 700;">IITB Placement Tracker</strong>
         </div>
-        <button id="iitb-widget-close" style="border: none; background: transparent; cursor: pointer; color: #94a3b8; font-size: 16px; padding: 0 4px;">✕</button>
+        <button id="iitb-widget-close" style="border: none; background: transparent; cursor: pointer; color: #94a3b8; font-size: 15px; padding: 2px;">✕</button>
       </div>
+
       <div style="font-size: 12px; color: #475569; line-height: 1.4;">
-        Detected <strong>${count}</strong> applied ${count === 1 ? 'company' : 'companies'} on this page.
-        ${detectedLdap ? `<div style="margin-top: 2px; color: #0284c7; font-weight: 600;">Student ID: ${detectedLdap}</div>` : ''}
+        Captured <strong>${count}</strong> applied companies.
+        ${detectedLdap ? `<span style="display:block; margin-top: 2px; color: #0284c7; font-weight: 600;">Student: ${detectedLdap}</span>` : ''}
       </div>
+
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;">Destination URL</label>
+        <input id="iitb-widget-url" type="url" placeholder="https://your-app.vercel.app" style="
+          width: 100%;
+          box-sizing: border-box;
+          padding: 6px 8px;
+          font-size: 11px;
+          border: 1px solid #cbd5e1;
+          border-radius: 6px;
+          background: #f8fafc;
+          color: #0f172a;
+          outline: none;
+        " />
+      </div>
+
       <button id="iitb-widget-sync-btn" style="
         background: #0284c7;
         color: #ffffff;
         border: none;
-        padding: 8px 14px;
+        padding: 9px 14px;
         border-radius: 8px;
-        font-weight: 600;
+        font-weight: 700;
         cursor: pointer;
         font-size: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 6px;
+        box-shadow: 0 2px 4px rgba(2, 132, 199, 0.2);
         transition: background 0.2s;
       ">
-        🚀 Sync to Tracker Web App
+        🚀 Sync to Vercel Tracker
       </button>
     `;
 
     document.body.appendChild(widget);
+
+    const urlInput = document.getElementById('iitb-widget-url');
+
+    // Prepopulate with saved URL
+    chrome.storage.sync.get(['vercelAppUrl'], (res) => {
+      if (res.vercelAppUrl && !res.vercelAppUrl.includes('localhost')) {
+        urlInput.value = res.vercelAppUrl;
+      } else {
+        urlInput.value = res.vercelAppUrl || '';
+      }
+    });
+
+    urlInput.onchange = () => {
+      if (urlInput.value.trim()) {
+        chrome.storage.sync.set({ vercelAppUrl: urlInput.value.trim() });
+      }
+    };
 
     document.getElementById('iitb-widget-close').onclick = () => {
       widget.remove();
     };
 
     document.getElementById('iitb-widget-sync-btn').onclick = async () => {
+      let targetUrl = urlInput.value.trim();
+      if (!targetUrl) {
+        targetUrl = prompt('Enter your Vercel URL (e.g. https://test-reminder-xxx.vercel.app):');
+        if (!targetUrl || !targetUrl.trim()) return;
+        targetUrl = targetUrl.trim();
+        urlInput.value = targetUrl;
+      }
+
+      // Save URL for future syncs
+      chrome.storage.sync.set({ vercelAppUrl: targetUrl });
+
+      const appUrl = targetUrl.replace(/\/+$/, '');
+      const targetLdap = detectedLdap || 'my-apps';
       const btn = document.getElementById('iitb-widget-sync-btn');
       btn.innerText = 'Syncing...';
       btn.style.background = '#0369a1';
 
-      chrome.storage.sync.get(['vercelAppUrl', 'studentLdap'], async (res) => {
-        const appUrl = (res.vercelAppUrl || 'http://localhost:3000').replace(/\/+$/, '');
-        const targetLdap = res.studentLdap || detectedLdap || 'my-apps';
+      // 1. Post to API webhook
+      try {
+        await fetch(`${appUrl}/api/sync`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ldapId: targetLdap, applications: companies }),
+        });
+      } catch (e) {
+        console.warn('API post failed, falling back to tab open', e);
+      }
 
-        // 1. Post to API if reachable
-        try {
-          await fetch(`${appUrl}/api/sync`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ldapId: targetLdap, applications: companies }),
-          });
-        } catch (e) {
-          console.warn('API post failed, falling back to direct tab open', e);
-        }
+      // 2. Open Web App tab with encoded sync payload
+      const payloadStr = encodeURIComponent(JSON.stringify(companies));
+      const redirectUrl = `${appUrl}?sync_ldap=${encodeURIComponent(targetLdap)}&sync_payload=${payloadStr}`;
+      window.open(redirectUrl, '_blank');
 
-        // 2. Open Web App tab with encoded sync payload
-        const payloadStr = encodeURIComponent(JSON.stringify(companies));
-        const redirectUrl = `${appUrl}?sync_ldap=${encodeURIComponent(targetLdap)}&sync_payload=${payloadStr}`;
-        window.open(redirectUrl, '_blank');
-
-        btn.innerText = '✓ Synced!';
-        btn.style.background = '#10b981';
-        setTimeout(() => {
-          btn.innerText = '🚀 Sync to Tracker Web App';
-          btn.style.background = '#0284c7';
-        }, 3000);
-      });
+      btn.innerText = '✓ Synced to Vercel!';
+      btn.style.background = '#10b981';
+      setTimeout(() => {
+        btn.innerText = '🚀 Sync to Vercel Tracker';
+        btn.style.background = '#0284c7';
+      }, 3000);
     };
   }
 
@@ -199,7 +268,7 @@
     return true;
   });
 
-  // Observe page mutations in case table loads asynchronously via AJAX/React
+  // Observe page mutations
   const observer = new MutationObserver(() => {
     if (!document.getElementById('iitb-sync-floating-widget')) {
       const companies = scrapeCompanies();
@@ -211,7 +280,6 @@
 
   observer.observe(document.body, { childList: true, subtree: true });
 
-  // Initial attempt
   if (document.readyState === 'complete' || document.readyState === 'interactive') {
     init();
   } else {

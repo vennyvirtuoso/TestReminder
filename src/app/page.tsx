@@ -36,20 +36,32 @@ function mergeApplications(
   existingApps: CompanyApplication[],
   incoming: Partial<CompanyApplication>[]
 ): CompanyApplication[] {
-  const newItems: CompanyApplication[] = incoming.map((item, idx) => ({
-    id: item.id || `app-${Date.now()}-${idx}`,
-    companyName: item.companyName || 'Company',
-    profile: item.profile || 'General',
-    jafId: item.jafId || undefined,
-    status: item.status || 'Applied',
-    appliedDate: item.appliedDate || '',
-    testGiven: Boolean(item.testGiven),
-    testDate: item.testDate || '',
-    testPlatform: item.testPlatform || '',
-    comments: item.comments || [],
-    createdAt: item.createdAt || new Date().toISOString(),
-    updatedAt: item.updatedAt || new Date().toISOString(),
-  }));
+  const newItems: CompanyApplication[] = incoming.map((item, idx) => {
+    let profile = item.profile || 'General';
+    let jafId = item.jafId || undefined;
+
+    // Auto-fix if profile is purely numeric (e.g. "3", "2") and jafId has the role name (e.g. "AI/ML Researcher")
+    if (/^\d+$/.test(profile.trim()) && jafId && /[a-zA-Z]/.test(jafId)) {
+      const num = profile.trim();
+      profile = jafId.trim();
+      jafId = `Profile #${num}`;
+    }
+
+    return {
+      id: item.id || `app-${Date.now()}-${idx}`,
+      companyName: item.companyName || 'Company',
+      profile: profile,
+      jafId: jafId,
+      status: item.status || 'Applied',
+      appliedDate: item.appliedDate || '',
+      testGiven: Boolean(item.testGiven),
+      testDate: item.testDate || '',
+      testPlatform: item.testPlatform || '',
+      comments: item.comments || [],
+      createdAt: item.createdAt || new Date().toISOString(),
+      updatedAt: item.updatedAt || new Date().toISOString(),
+    };
+  });
 
   const existingMap = new Map<string, CompanyApplication>();
   existingApps.forEach((app) => {

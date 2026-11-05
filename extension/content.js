@@ -1,99 +1,132 @@
-// IIT Bombay Placement Portal Content Script
+// IIT Bombay Placement Portal - Advanced Multi-Page Auto-Sync Content Script
 (function () {
-  console.log('[IITB Placement Auto-Sync] Content script loaded on', window.location.href);
+  console.log('[IITB Placement Auto-Sync] Advanced content script loaded on', window.location.href);
 
-  // Scrape applied companies from the page
-  function scrapeCompanies() {
-    const rows = Array.from(document.querySelectorAll('table tbody tr, table tr'));
-    const items = [];
+  // In-memory accumulation of all scraped companies across pages & sections
+  const accumulatedCompanies = new Map();
 
-    rows.forEach((r, idx) => {
-      const cells = Array.from(r.querySelectorAll('td')).map((c) => c.innerText.trim());
-      if (cells.length >= 2) {
-        let company = '',
-          profile = 'General Role',
-          jaf = '',
-          status = 'Applied',
-          processStages = '';
-
-        // Standard IIT Bombay placement portal table column layout:
-        // cells[0]: Serial No (e.g. "1")
-        // cells[1]: Company Name (e.g. "NK Securities Research Private Limited")
-        // cells[2]: Profile ID / JAF index (e.g. "3")
-        // cells[3]: Designation / Job Role (e.g. "AI/ML Researcher")
-        // cells[4]: Stages (e.g. "Applied\nTechnical test\n...")
-        if (/^\d+$/.test(cells[0])) {
-          company = cells[1] || '';
-          const col2 = cells[2] || '';
-          const col3 = cells[3] || '';
-          processStages = cells[4] || '';
-
-          if (/^\d+$/.test(col2) && col3) {
-            profile = col3;
-            jaf = `Profile #${col2}`;
-          } else {
-            profile = col2 || col3 || 'General Role';
-            jaf = col3 || '';
-          }
-        } else {
-          company = cells[0] || '';
-          profile = cells[1] || 'General Role';
-          jaf = cells[2] || '';
-          processStages = cells[3] || '';
-        }
-
-        // Clean up status and stages
-        if (processStages) {
-          const firstLine = processStages.split('\n')[0].trim();
-          status = normalizeStatus(firstLine || processStages);
-        }
-
-        // Filter out header rows
-        if (
-          company &&
-          !company.toLowerCase().includes('company') &&
-          !company.toLowerCase().includes('sr.')
-        ) {
-          const comments = [];
-          if (processStages && processStages.includes('\n')) {
-            const stagesList = processStages.split('\n').map((s) => s.trim()).filter(Boolean);
-            if (stagesList.length > 1) {
-              comments.push({
-                id: `stages-${Date.now()}-${idx}`,
-                text: `Hiring Process: ${stagesList.join(' ➔ ')}`,
-                createdAt: new Date().toISOString(),
-              });
-            }
-          }
-
-          items.push({
-            id: `iitb-${Date.now()}-${idx}`,
-            companyName: company.replace(/\s+/g, ' ').trim(),
-            profile: profile.replace(/\s+/g, ' ').trim(),
-            jafId: jaf.trim(),
-            status: status,
-            appliedDate: new Date().toISOString().slice(0, 10),
-            testGiven: false,
-            comments: comments,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          });
-        }
-      }
-    });
-
-    return items;
+  // Helper to extract clean text without child SVGs / icons
+  function getCleanText(el) {
+    if (!el) return '';
+    const clone = el.cloneNode(true);
+    clone.querySelectorAll('svg, i-feather, i, .fa, .feather').forEach((n) => n.remove());
+    return clone.textContent.replace(/\s+/g, ' ').trim();
   }
 
-  function normalizeStatus(raw) {
-    const s = (raw || '').toLowerCase();
-    if (s.includes('shortlist')) return 'Shortlisted';
-    if (s.includes('interview')) return 'Interview';
-    if (s.includes('select')) return 'Selected';
-    if (s.includes('reject') || s.includes('not shortlisted')) return 'Rejected';
-    if (s.includes('waitlist')) return 'Waitlisted';
-    if (s.includes('closed')) return 'Closed';
-    return 'Applied';
+  // Parse an Angular Material mat-table row
+  function parseMatRow(row, category = 'Eligible') {
+    const companyEl = row.querySelector('.cdk-column-company, td:nth-child(1)');
+    const codeEl = row.querySelector('.cdk-column-code, td:nth-child(2)');
+    const titleEl = row.querySelector('.cdk-column-title, td:nth-child(3)');
+    const dateEl = row.querySelector('.cdk-column-signingDate, td:nth-child(4)');
+    const statusEl = row.querySelector('.cdk-column-status, td:nth-child(5)');
+    const resumeEl = row.querySelector('.cdk-column-resume, td:nth-child(6)');
+
+    const company = getCleanText(companyEl);
+    if (!company || company.toLowerCase().includes('company')) return null;
+
+    const jobCode = getCleanText(codeEl) || '1';
+    const roleTitle = getCleanText(titleEl) || 'General Role';
+
+    const titleLink = titleEl?.querySelector('a');
+    const jobDetailHref = titleLink?.getAttribute('href') || '';
+    const jobIdMatch = jobDetailHref.match(/\/applicant\/job\/(\d+)/);
+    const uniqueJobId = jobIdMatch ? jobIdMatch[1] : `${company}_${roleTitle}_${jobCode}`;
+
+    const signingDate = getCleanText(dateEl);
+    const resumeNo = getCleanText(resumeEl);
+
+    // Parse Progress Train Stages
+    const stages = [];
+    let currentStatus = 'Applied';
+    let hasTestInPipeline = false;
+    let testName = '';
+
+    if (statusEl) {
+      const trainSteps = statusEl.querySelectorAll('.progress-train > div, app-progress-train div.d-flex.flex-column');
+      trainSteps.forEach((step) => {
+        const stepName = getCleanText(step.querySelector('.name')) || step.innerText.trim();
+        if (stepName) {
+          stages.push(stepName);
+          const isSuccess = step.classList.contains('success');
+          const isDanger = step.classList.contains('danger');
+
+          if (isSuccess) {
+            currentStatus = stepName;
+          } else if (isDanger) {
+            currentStatus = `Rejected at ${stepName}`;
+          }
+
+          const lower = stepName.toLowerCase();
+          if (lower.includes('test') || lower.includes('assessment') || lower.includes('coding')) {
+            hasTestInPipeline = true;
+            testName = stepName;
+          }
+        }
+      });
+    }
+
+    const comments = [];
+    if (stages.length > 0) {
+      comments.push({
+        id: `pipeline-${uniqueJobId}`,
+        text: `Hiring Pipeline: ${stages.join(' ➔ ')}`,
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    if (resumeNo) {
+      comments.push({
+        id: `resume-${uniqueJobId}`,
+        text: `Applied with Resume #${resumeNo} • Category: ${category}`,
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    return {
+      id: `iitb-job-${uniqueJobId}`,
+      companyName: company,
+      profile: roleTitle,
+      jafId: `Code #${jobCode}${jobIdMatch ? ` (Job ${jobIdMatch[1]})` : ''}`,
+      status: currentStatus,
+      appliedDate: signingDate,
+      testGiven: false,
+      testPlatform: hasTestInPipeline ? testName : undefined,
+      comments: comments,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  // Scrape all tables currently present in DOM (Eligible + Bonus)
+  function scrapeCurrentDOM() {
+    // 1. Eligible jobs
+    const eligibleSection = document.getElementById('eligible-jobs') || document;
+    eligibleSection.querySelectorAll('table.mat-table tbody tr.mat-row, table tbody tr').forEach((row) => {
+      const parsed = parseMatRow(row, 'Eligible');
+      if (parsed) accumulatedCompanies.set(parsed.id, parsed);
+    });
+
+    // 2. Bonus jobs
+    const bonusSection = document.getElementById('bonus-jobs');
+    if (bonusSection) {
+      bonusSection.querySelectorAll('table.mat-table tbody tr.mat-row, table tbody tr').forEach((row) => {
+        const parsed = parseMatRow(row, 'Bonus');
+        if (parsed) accumulatedCompanies.set(parsed.id, parsed);
+      });
+    }
+
+    return Array.from(accumulatedCompanies.values());
+  }
+
+  // Get total signed jobs count from page badge
+  function getTotalSignedJobsCount() {
+    const statsEl = document.querySelector('.stats, app-application');
+    if (statsEl) {
+      const match = statsEl.innerText.match(/Total number of jobs signed\s*(\d+)/i);
+      if (match) return parseInt(match[1], 10);
+    }
+    return 0;
   }
 
   // Detect student LDAP ID / Roll Number from page content
@@ -106,9 +139,70 @@
     return '';
   }
 
+  // Auto-Paginator: Sequentially clicks Next Page until all items are scraped
+  let isAutoPaginating = false;
+  async function autoScrapeAllPages(updateCallback) {
+    if (isAutoPaginating) return;
+    isAutoPaginating = true;
+
+    try {
+      const totalExpected = getTotalSignedJobsCount();
+      console.log(`[IITB Placement Auto-Sync] Starting auto-pagination. Expected total: ${totalExpected}`);
+
+      // First, scrape current page
+      scrapeCurrentDOM();
+      if (updateCallback) updateCallback(accumulatedCompanies.size, totalExpected);
+
+      // Find Eligible Paginator
+      const eligibleSection = document.getElementById('eligible-jobs') || document;
+      const paginator = eligibleSection.querySelector('.mat-paginator');
+
+      if (paginator) {
+        // First rewind to page 1 if not on page 1
+        let prevBtn = paginator.querySelector('.mat-paginator-navigation-previous:not([disabled]):not(.mat-button-disabled)');
+        while (prevBtn) {
+          prevBtn.click();
+          await new Promise((r) => setTimeout(r, 400));
+          scrapeCurrentDOM();
+          if (updateCallback) updateCallback(accumulatedCompanies.size, totalExpected);
+          prevBtn = paginator.querySelector('.mat-paginator-navigation-previous:not([disabled]):not(.mat-button-disabled)');
+        }
+
+        // Now page through all Next pages
+        let nextBtn = paginator.querySelector('.mat-paginator-navigation-next:not([disabled]):not(.mat-button-disabled)');
+        let safetyCounter = 0;
+
+        while (nextBtn && safetyCounter < 15) {
+          safetyCounter++;
+          console.log(`[IITB Placement Auto-Sync] Paging to next page (${safetyCounter})...`);
+          nextBtn.click();
+          await new Promise((r) => setTimeout(r, 500)); // wait for Angular DOM re-render
+
+          scrapeCurrentDOM();
+          if (updateCallback) updateCallback(accumulatedCompanies.size, totalExpected);
+
+          nextBtn = paginator.querySelector('.mat-paginator-navigation-next:not([disabled]):not(.mat-button-disabled)');
+        }
+      }
+
+      // Also ensure bonus jobs are collected
+      scrapeCurrentDOM();
+      if (updateCallback) updateCallback(accumulatedCompanies.size, totalExpected);
+
+      console.log(`[IITB Placement Auto-Sync] Completed! Total collected: ${accumulatedCompanies.size}`);
+    } catch (err) {
+      console.error('Auto-pagination error:', err);
+    } finally {
+      isAutoPaginating = false;
+    }
+  }
+
   // Inject floating sync widget on campus.placements.iitb.ac.in
-  function injectFloatingWidget(companies) {
-    if (document.getElementById('iitb-sync-floating-widget')) return;
+  function injectFloatingWidget() {
+    if (document.getElementById('iitb-sync-floating-widget')) {
+      updateWidgetCount();
+      return;
+    }
 
     const widget = document.createElement('div');
     widget.id = 'iitb-sync-floating-widget';
@@ -120,7 +214,7 @@
       background: #ffffff;
       border: 1.5px solid #0284c7;
       border-radius: 14px;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.25), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
       padding: 14px 16px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       font-size: 13px;
@@ -128,10 +222,10 @@
       display: flex;
       flex-direction: column;
       gap: 10px;
-      width: 320px;
+      width: 330px;
     `;
 
-    const count = companies.length;
+    const totalExpected = getTotalSignedJobsCount();
     const detectedLdap = detectStudentLdap();
 
     widget.innerHTML = `
@@ -144,12 +238,31 @@
       </div>
 
       <div style="font-size: 12px; color: #475569; line-height: 1.4;">
-        Captured <strong>${count}</strong> applied companies.
+        Captured <strong id="iitb-captured-count" style="color: #0284c7; font-size: 14px;">${accumulatedCompanies.size}</strong>${totalExpected ? ` of <strong>${totalExpected}</strong> total jobs` : ' companies'}.
         ${detectedLdap ? `<span style="display:block; margin-top: 2px; color: #0284c7; font-weight: 600;">Student: ${detectedLdap}</span>` : ''}
       </div>
 
+      <!-- Auto-Paging button for multi-page jobs -->
+      <button id="iitb-auto-page-btn" style="
+        background: #f0fdf4;
+        color: #166534;
+        border: 1px solid #bbf7d0;
+        padding: 7px 10px;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 11px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        transition: background 0.2s;
+      ">
+        ⚡ Collect All Pages (${totalExpected || 'All'} Jobs)
+      </button>
+
       <div style="display: flex; flex-direction: column; gap: 4px;">
-        <label style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;">Destination URL</label>
+        <label style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;">Destination Vercel URL</label>
         <input id="iitb-widget-url" type="url" placeholder="https://your-app.vercel.app" style="
           width: 100%;
           box-sizing: border-box;
@@ -186,13 +299,9 @@
     document.body.appendChild(widget);
 
     const urlInput = document.getElementById('iitb-widget-url');
-
-    // Prepopulate with saved URL
     chrome.storage.sync.get(['vercelAppUrl'], (res) => {
       if (res.vercelAppUrl && !res.vercelAppUrl.includes('localhost')) {
         urlInput.value = res.vercelAppUrl;
-      } else {
-        urlInput.value = res.vercelAppUrl || '';
       }
     });
 
@@ -206,6 +315,26 @@
       widget.remove();
     };
 
+    // Auto-Page button click
+    const autoPageBtn = document.getElementById('iitb-auto-page-btn');
+    autoPageBtn.onclick = async () => {
+      autoPageBtn.innerText = '⏳ Paging through tables...';
+      autoPageBtn.disabled = true;
+
+      await autoScrapeAllPages((current, total) => {
+        updateWidgetCount();
+      });
+
+      autoPageBtn.innerText = `✓ Collected all ${accumulatedCompanies.size} jobs!`;
+      autoPageBtn.style.background = '#dcfce7';
+      autoPageBtn.style.color = '#15803d';
+      setTimeout(() => {
+        autoPageBtn.innerText = '⚡ Collect All Pages';
+        autoPageBtn.disabled = false;
+      }, 4000);
+    };
+
+    // Sync button click
     document.getElementById('iitb-widget-sync-btn').onclick = async () => {
       let targetUrl = urlInput.value.trim();
       if (!targetUrl) {
@@ -215,32 +344,32 @@
         urlInput.value = targetUrl;
       }
 
-      // Save URL for future syncs
       chrome.storage.sync.set({ vercelAppUrl: targetUrl });
-
       const appUrl = targetUrl.replace(/\/+$/, '');
       const targetLdap = detectedLdap || 'my-apps';
       const btn = document.getElementById('iitb-widget-sync-btn');
       btn.innerText = 'Syncing...';
       btn.style.background = '#0369a1';
 
+      const allCompanies = Array.from(accumulatedCompanies.values());
+
       // 1. Post to API webhook
       try {
         await fetch(`${appUrl}/api/sync`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ldapId: targetLdap, applications: companies }),
+          body: JSON.stringify({ ldapId: targetLdap, applications: allCompanies }),
         });
       } catch (e) {
         console.warn('API post failed, falling back to tab open', e);
       }
 
-      // 2. Open Web App tab with encoded sync payload
-      const payloadStr = encodeURIComponent(JSON.stringify(companies));
+      // 2. Open Web App tab with encoded payload
+      const payloadStr = encodeURIComponent(JSON.stringify(allCompanies));
       const redirectUrl = `${appUrl}?sync_ldap=${encodeURIComponent(targetLdap)}&sync_payload=${payloadStr}`;
       window.open(redirectUrl, '_blank');
 
-      btn.innerText = '✓ Synced to Vercel!';
+      btn.innerText = `✓ Synced ${allCompanies.length} Jobs!`;
       btn.style.background = '#10b981';
       setTimeout(() => {
         btn.innerText = '🚀 Sync to Vercel Tracker';
@@ -249,32 +378,30 @@
     };
   }
 
-  // Run automatically when DOM is ready
-  function init() {
-    const companies = scrapeCompanies();
-    if (companies.length > 0) {
-      console.log(`[IITB Placement Auto-Sync] Scraped ${companies.length} companies.`);
-      injectFloatingWidget(companies);
+  function updateWidgetCount() {
+    const countEl = document.getElementById('iitb-captured-count');
+    if (countEl) {
+      countEl.innerText = accumulatedCompanies.size;
     }
   }
 
-  // Listen for popup messages
-  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === 'SCRAPE_COMPANIES') {
-      const companies = scrapeCompanies();
-      const ldap = detectStudentLdap();
-      sendResponse({ companies, ldap });
+  // Initial trigger
+  function init() {
+    scrapeCurrentDOM();
+    if (document.querySelector('table.mat-table')) {
+      injectFloatingWidget();
     }
-    return true;
-  });
+  }
 
-  // Observe page mutations
+  // Observe page changes (when user manually changes page or filters)
   const observer = new MutationObserver(() => {
-    if (!document.getElementById('iitb-sync-floating-widget')) {
-      const companies = scrapeCompanies();
-      if (companies.length > 0) {
-        injectFloatingWidget(companies);
-      }
+    const prevSize = accumulatedCompanies.size;
+    scrapeCurrentDOM();
+    if (document.querySelector('table.mat-table')) {
+      injectFloatingWidget();
+    }
+    if (accumulatedCompanies.size !== prevSize) {
+      updateWidgetCount();
     }
   });
 

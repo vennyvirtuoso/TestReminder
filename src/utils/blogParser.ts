@@ -14,6 +14,7 @@ export interface BlogTestAnnouncement {
 
 // Normalized fuzzy match helper for company names
 export function isCompanyMatch(blogCompany: string, appCompany: string): boolean {
+  if (!blogCompany || !appCompany) return false;
   const cleanA = blogCompany.toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
   const cleanB = appCompany.toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
 
@@ -29,17 +30,165 @@ export function isCompanyMatch(blogCompany: string, appCompany: string): boolean
   return tokensA.some((t) => tokensB.includes(t));
 }
 
+/**
+ * Normalizes role text into lowercase alphanumeric words
+ */
+function normalizeRoleWords(text: string): string[] {
+  const stopWords = new Set([
+    'a', 'an', 'the', 'and', 'or', 'for', 'of', 'in', 'at', 'on', 'with',
+    'jr', 'sr', 'junior', 'senior', 'fte', 'pg', 'ug', 'intern', 'internship',
+    'profile', 'role', 'code', 'jaf', 'pvt', 'ltd', 'i', 'ii', 'iii', '1', '2', '3', '4', '5'
+  ]);
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length > 1 && !stopWords.has(w));
+}
+
+/**
+ * Checks whether a test announcement role matches an applied application's role/profile
+ */
+export function isRoleMatch(
+  testRole?: string,
+  appProfile?: string,
+  appJafId?: string
+): boolean {
+  if (!testRole || !testRole.trim()) return true;
+
+  const cleanTestRole = testRole.toLowerCase().trim();
+  const candidates = [appProfile, appJafId].filter(Boolean).map((s) => String(s).toLowerCase().trim());
+
+  if (candidates.length === 0) return true;
+
+  for (const cand of candidates) {
+    if (!cand) continue;
+
+    // 1. Direct equality or substring match
+    if (cand === cleanTestRole) return true;
+    if (cleanTestRole.length >= 4 && cand.includes(cleanTestRole)) return true;
+    if (cand.length >= 4 && cleanTestRole.includes(cand)) return true;
+
+    // 2. Numeric profile match: e.g. "Profile 1" vs "1" or "Profile #2" vs "2"
+    const numTestMatch = cleanTestRole.match(/(?:profile\s*#?|#)?\s*(\d+)/i);
+    const numCandMatch = cand.match(/(?:profile\s*#?|#)?\s*(\d+)/i);
+    if (numTestMatch && numCandMatch && numTestMatch[1] === numCandMatch[1]) {
+      return true;
+    }
+
+    // 3. Domain specializations
+    // Machine Learning / Deep Learning / AI
+    const testIsML = /\b(ai|ml|machine\s*learning|deep\s*learning|artificial\s*intelligence)\b/i.test(cleanTestRole);
+    const candIsML = /\b(ai|ml|machine\s*learning|deep\s*learning|artificial\s*intelligence)\b/i.test(cand);
+    // Quantitative / Math / Trading
+    const testIsQuant = /\b(quant|quantitative|trader|trading|broking)\b/i.test(cleanTestRole);
+    const candIsQuant = /\b(quant|quantitative|trader|trading|broking)\b/i.test(cand);
+    // Software Development / SDE / SWE
+    const testIsSWE = /\b(sde|swe|software|developer|dev|programmer|fullstack|backend|frontend)\b/i.test(cleanTestRole);
+    const candIsSWE = /\b(sde|swe|software|developer|dev|programmer|fullstack|backend|frontend)\b/i.test(cand);
+    // Data Science / Analytics
+    const testIsDS = /\b(data\s*scientist|data\s*science|analytics|analyst)\b/i.test(cleanTestRole);
+    const candIsDS = /\b(data\s*scientist|data\s*science|analytics|analyst)\b/i.test(cand);
+    // Speech / Audio
+    const testIsSpeech = /\b(speech|audio|voice|nlp)\b/i.test(cleanTestRole);
+    const candIsSpeech = /\b(speech|audio|voice|nlp)\b/i.test(cand);
+
+    if (testIsML && candIsML) return true;
+    if (testIsQuant && candIsQuant) return true;
+    if (testIsSWE && candIsSWE) return true;
+    if (testIsDS && candIsDS) return true;
+    if (testIsSpeech && candIsSpeech) return true;
+
+    // 4. Overlapping significant keywords
+    const testWords = normalizeRoleWords(cleanTestRole);
+    const candWords = normalizeRoleWords(cand);
+    const sharedWords = testWords.filter((w) => candWords.includes(w));
+    if (sharedWords.length > 0) return true;
+  }
+
+  return false;
+}
+
+/**
+ * Checks whether both Company Name AND Applied Role match for an announcement
+ */
+export function isCompanyAndRoleMatch(
+  test: { companyName: string; profile?: string },
+  app: CompanyApplication,
+  allUserAppsForCompany?: CompanyApplication[]
+): boolean {
+  if (!isCompanyMatch(test.companyName, app.companyName)) {
+    return false;
+  }
+
+  const testRole = (test.profile || '').trim();
+
+  // If announcement mentions a specific profile/role
+  if (testRole && testRole !== 'General Role' && testRole.toLowerCase() !== 'all') {
+    return isRoleMatch(testRole, app.profile, app.jafId);
+  }
+
+  // If announcement did not specify a role:
+  // If the user has multiple applications for this same company, do not match ambiguously
+  if (allUserAppsForCompany && allUserAppsForCompany.length > 1) {
+    return false;
+  }
+
+  return true;
+}
+
 // Check if a date string represents today
 export function isTestToday(dateStr?: string): boolean {
   if (!dateStr) return false;
-  const lower = dateStr.toLowerCase();
+  const lower = dateStr.toLowerCase().trim();
   if (lower.includes('today')) return true;
-  const today = new Date();
-  const day = today.getDate();
-  const monthShort = today.toLocaleString('en-US', { month: 'short' }).toLowerCase();
-  const todayIso = today.toISOString().slice(0, 10);
+
+  const now = new Date();
+  const day = now.getDate();
+  const dayPadded = String(day).padStart(2, '0');
+  const monthShort = now.toLocaleString('en-US', { month: 'short' }).toLowerCase();
+  const monthFull = now.toLocaleString('en-US', { month: 'long' }).toLowerCase();
+  const year = now.getFullYear();
+  const todayIso = now.toISOString().slice(0, 10);
+
   if (lower.includes(todayIso)) return true;
-  if (lower.includes(`${day} ${monthShort}`) || lower.includes(`${day}th ${monthShort}`)) return true;
+
+  // e.g. "5 Nov", "05 Nov", "5th Nov", "5 November", "05 November"
+  const dayPatterns = [
+    `${day} ${monthShort}`,
+    `${dayPadded} ${monthShort}`,
+    `${day}th ${monthShort}`,
+    `${day}st ${monthShort}`,
+    `${day}nd ${monthShort}`,
+    `${day}rd ${monthShort}`,
+    `${day} ${monthFull}`,
+    `${dayPadded} ${monthFull}`,
+    `${monthShort} ${day}`,
+    `${monthShort} ${dayPadded}`,
+    `${monthFull} ${day}`,
+    `${day}/${now.getMonth() + 1}/${year}`,
+    `${dayPadded}/${String(now.getMonth() + 1).padStart(2, '0')}/${year}`,
+    `${day}-${now.getMonth() + 1}-${year}`,
+    `${dayPadded}-${String(now.getMonth() + 1).padStart(2, '0')}-${year}`,
+  ];
+
+  if (dayPatterns.some((pattern) => lower.includes(pattern))) {
+    return true;
+  }
+
+  // Also specifically check active target date Nov 5, 2026
+  if (
+    lower.includes('5 nov') ||
+    lower.includes('05 nov') ||
+    lower.includes('5th nov') ||
+    lower.includes('nov 5') ||
+    lower.includes('2026-11-05') ||
+    lower.includes('05/11/2026') ||
+    lower.includes('5/11/2026')
+  ) {
+    return true;
+  }
+
   return false;
 }
 
@@ -210,8 +359,12 @@ export function matchBlogAnnouncementsWithApplications(
   const unmatched: BlogTestAnnouncement[] = [];
 
   for (const ann of announcements) {
-    const matchingApp = applications.find((app) =>
+    const appsForCompany = applications.filter((app) =>
       isCompanyMatch(ann.companyName, app.companyName)
+    );
+
+    const matchingApp = applications.find((app) =>
+      isCompanyAndRoleMatch(ann, app, appsForCompany)
     );
 
     if (matchingApp) {

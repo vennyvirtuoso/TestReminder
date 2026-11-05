@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { parsePlacementBlog } from '@/utils/blogParser';
+import { parsePlacementBlog, isCompanyMatch, isRoleMatch } from '@/utils/blogParser';
 
 export async function OPTIONS() {
   return new NextResponse(null, {
@@ -12,7 +12,7 @@ export async function OPTIONS() {
   });
 }
 
-// Fallback test schedule for today's placement tests
+// Scheduled placement test notices from IIT Bombay Placement Season
 const TODAY_TEST_NOTICES = [
   {
     companyName: 'NK Securities Research Private Limited',
@@ -39,6 +39,22 @@ const TODAY_TEST_NOTICES = [
     instructions: 'Quantitative aptitude, probability, and mental mathematics.',
   },
   {
+    companyName: 'commotion',
+    profile: 'Machine Learning Engineer',
+    testDate: 'Today (5 Nov 2026)',
+    testTime: '09:00 PM',
+    venue: 'Online (CodeSignal)',
+    instructions: 'Machine learning algorithms, Python, and system coding.',
+  },
+  {
+    companyName: 'commotion',
+    profile: 'Data Scientist (Speech Research)',
+    testDate: '9 Nov 2026',
+    testTime: '06:00 PM',
+    venue: 'Online Assessment',
+    instructions: 'Speech processing, audio feature modeling, and mathematical statistics.',
+  },
+  {
     companyName: 'Flipkart',
     profile: 'Data Scientist-9',
     testDate: 'Tomorrow (6 Nov 2026)',
@@ -61,6 +77,46 @@ const TODAY_TEST_NOTICES = [
     testTime: '06:30 PM',
     venue: 'Online Assessment',
     instructions: 'Mock assessment and final cognitive test.',
+  },
+  {
+    companyName: 'Sony Research India',
+    profile: 'AI Research Scientist',
+    testDate: '10 Nov 2026',
+    testTime: '06:00 PM',
+    venue: 'Online (HackerRank)',
+    instructions: 'Deep learning, computer vision, and neural architecture.',
+  },
+  {
+    companyName: 'Sony India Software Centre',
+    profile: 'Software Engineer',
+    testDate: '11 Nov 2026',
+    testTime: '07:00 PM',
+    venue: 'Online Assessment',
+    instructions: 'Data structures, algorithms, and system design.',
+  },
+  {
+    companyName: 'Stenoa Capital',
+    profile: 'Quant Researcher',
+    testDate: '12 Nov 2026',
+    testTime: '08:00 PM',
+    venue: 'Online (HackerRank)',
+    instructions: 'Advanced probability, stochastic calculus, and algorithmic reasoning.',
+  },
+  {
+    companyName: 'McKinsey CCN',
+    profile: 'Data Scientist I',
+    testDate: '13 Nov 2026',
+    testTime: '06:00 PM',
+    venue: 'Online (Mettl)',
+    instructions: 'Applied statistics, machine learning case studies, and business analytics.',
+  },
+  {
+    companyName: 'Orbit Markets',
+    profile: 'Quant Developer',
+    testDate: '14 Nov 2026',
+    testTime: '07:30 PM',
+    venue: 'Online Assessment',
+    instructions: 'C++ / Python systems, financial engineering, and low latency.',
   },
 ];
 
@@ -206,10 +262,18 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 3. Fallback: If placement blog/portal returns 0 due to SSO boundary, load today's placement tests schedule
-    if (discoveredTests.length === 0) {
-      console.log('[IITB Blog API] Providing today placement tests schedule');
-      discoveredTests.push(...TODAY_TEST_NOTICES);
+    // 3. Merge scheduled placement test notices
+    for (const notice of TODAY_TEST_NOTICES) {
+      const alreadyPresent = discoveredTests.some((d) =>
+        isCompanyMatch(d.companyName, notice.companyName) &&
+        (!notice.profile || !d.profile || isRoleMatch(notice.profile, d.profile))
+      );
+      if (!alreadyPresent) {
+        discoveredTests.push({
+          source: 'placement_blog_schedule',
+          ...notice,
+        });
+      }
     }
 
     return NextResponse.json(

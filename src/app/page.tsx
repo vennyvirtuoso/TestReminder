@@ -24,7 +24,7 @@ import {
   saveUserApplications,
   getIITBToken,
 } from '../utils/storage';
-import { isCompanyMatch } from '../utils/blogParser';
+import { isCompanyMatch, isCompanyAndRoleMatch } from '../utils/blogParser';
 import { SAMPLE_APPLICATIONS } from '../utils/sampleData';
 import { Navbar } from '../components/Navbar';
 import { StatsCards } from '../components/StatsCards';
@@ -232,19 +232,13 @@ export default function Home() {
   const scanPlacementBlog = async (silent: boolean = false) => {
     if (!currentUser) return;
     const token = getIITBToken(currentUser);
-    if (!token) {
-      if (!silent) {
-        setIsImportModalOpen(true);
-      }
-      return;
-    }
 
     setIsBlogScanning(true);
     try {
       const res = await fetch('/api/iitb/blog', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, ldapId: currentUser }),
+        body: JSON.stringify({ token: token || undefined, ldapId: currentUser }),
       });
 
       const data = await res.json();
@@ -252,9 +246,14 @@ export default function Home() {
         let updatedCount = 0;
         const baseApps = applications.length > 0 ? applications : getUserApplications(currentUser);
         const updatedApps = baseApps.map((app) => {
-          const matchedTest = data.tests.find((t: any) =>
-            isCompanyMatch(t.companyName, app.companyName)
+          const appsForSameCompany = baseApps.filter((a) =>
+            isCompanyMatch(a.companyName, app.companyName)
           );
+
+          const matchedTest = data.tests.find((t: any) =>
+            isCompanyAndRoleMatch(t, app, appsForSameCompany)
+          );
+
           if (matchedTest) {
             const formattedDate = matchedTest.testTime
               ? `${matchedTest.testDate} at ${matchedTest.testTime}`
@@ -273,7 +272,7 @@ export default function Home() {
                 ...app,
                 testDate: formattedDate,
                 testPlatform: venue,
-                comments: [newComment, ...app.comments],
+                comments: [newComment, ...(app.comments || [])],
                 updatedAt: new Date().toISOString(),
               };
             }
@@ -307,8 +306,6 @@ export default function Home() {
   // 20-minute recurring auto-scanner for IIT Bombay Placement Blog
   useEffect(() => {
     if (!currentUser || !isLoaded) return;
-    const token = getIITBToken(currentUser);
-    if (!token) return;
 
     // Scan once on startup / login
     scanPlacementBlog(true);

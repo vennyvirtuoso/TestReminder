@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ExternalLink, ShieldCheck, Download, Plus, Upload, User, LogOut, Trash2 } from 'lucide-react';
+import { ExternalLink, ShieldCheck, Download, Plus, Upload, User, LogOut, Trash2, BookOpen } from 'lucide-react';
 import { CompanyApplication } from '../types';
 import { exportToCSV, exportToJSON } from '../utils/storage';
 
@@ -9,6 +9,7 @@ interface NavbarProps {
   ldapId: string;
   onLogout: () => void;
   onOpenImportModal: () => void;
+  onOpenBlogModal?: () => void;
   onOpenAddModal: () => void;
   onClearAll: () => void;
   onLoadSample: () => void;
@@ -19,6 +20,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   ldapId,
   onLogout,
   onOpenImportModal,
+  onOpenBlogModal,
   onOpenAddModal,
   onClearAll,
   onLoadSample,
@@ -82,6 +84,18 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Upload className="w-4 h-4" />
               <span className="hidden sm:inline">Sync / Import</span>
             </button>
+
+            {/* Placement Blog Button */}
+            {onOpenBlogModal && (
+              <button
+                onClick={onOpenBlogModal}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 transition cursor-pointer"
+                title="Scan IIT Bombay Placement Blog for Test Dates & Venues"
+              >
+                <BookOpen className="w-4 h-4 text-amber-600" />
+                <span className="hidden sm:inline">Placement Blog</span>
+              </button>
+            )}
 
             {/* Add Company */}
             <button

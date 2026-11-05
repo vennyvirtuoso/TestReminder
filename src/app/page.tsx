@@ -31,6 +31,8 @@ import { CompanyTableView } from '../components/CompanyTableView';
 import { ImportModal } from '../components/ImportModal';
 import { AddCompanyModal } from '../components/AddCompanyModal';
 import { LoginScreen } from '../components/LoginScreen';
+import { UpcomingTestsBanner } from '../components/UpcomingTestsBanner';
+import { PlacementBlogModal } from '../components/PlacementBlogModal';
 
 function mergeApplications(
   existingApps: CompanyApplication[],
@@ -110,6 +112,7 @@ export default function Home() {
 
   // Modals
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isBlogModalOpen, setIsBlogModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // Initialize session and check for incoming sync data
@@ -413,6 +416,7 @@ export default function Home() {
         ldapId={currentUser}
         onLogout={handleLogout}
         onOpenImportModal={() => setIsImportModalOpen(true)}
+        onOpenBlogModal={() => setIsBlogModalOpen(true)}
         onOpenAddModal={() => setIsAddModalOpen(true)}
         onClearAll={handleClearAll}
         onLoadSample={handleLoadSample}
@@ -437,13 +441,26 @@ export default function Home() {
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => setIsImportModalOpen(true)}
-              className="px-3.5 py-2 bg-white text-blue-900 font-bold text-xs rounded-lg hover:bg-blue-50 shadow-xs transition flex items-center gap-1.5"
+              className="px-3.5 py-2 bg-white text-blue-900 font-bold text-xs rounded-lg hover:bg-blue-50 shadow-xs transition flex items-center gap-1.5 cursor-pointer"
             >
               <Upload className="w-3.5 h-3.5 text-blue-700" />
-              Sync Applied Companies
+              Sync Portal
+            </button>
+            <button
+              onClick={() => setIsBlogModalOpen(true)}
+              className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold text-xs rounded-lg shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+            >
+              <span>📰 Placement Blog</span>
             </button>
           </div>
         </div>
+
+        {/* Upcoming Tests Alert Banner */}
+        <UpcomingTestsBanner
+          applications={applications}
+          onOpenBlogModal={() => setIsBlogModalOpen(true)}
+          onToggleTestGiven={handleToggleTestGiven}
+        />
 
         {/* Stats Section */}
         <StatsCards
@@ -692,6 +709,13 @@ export default function Home() {
         onImportApplications={handleImportApplications}
         onLoadSample={handleLoadSample}
         ldapId={currentUser || undefined}
+      />
+
+      <PlacementBlogModal
+        isOpen={isBlogModalOpen}
+        onClose={() => setIsBlogModalOpen(false)}
+        applications={applications}
+        onUpdateApplications={updateApplications}
       />
 
       <AddCompanyModal

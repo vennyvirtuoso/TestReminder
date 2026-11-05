@@ -12,6 +12,10 @@ Designed specifically for IIT Bombay students during Phase 1 & Phase 2 placement
 
 ## ✨ Features
 
+- 👥 **Multi-User LDAP Authentication**:
+  - Anyone visiting the Vercel app can sign in with their own IIT Bombay LDAP ID / Roll Number (e.g. `210050012`).
+  - Each student's applied companies, test checkboxes (Given/Not Given), and private comments are **strictly isolated to their own account**.
+  - One-click account switcher / logout so multiple students can use the same deployed link safely.
 - 📋 **List Applied Companies**: See all companies, roles/profiles, JAF IDs, and statuses in one clean dashboard.
 - ⏳ **Test Given / Test Not Given Tracker**:
   - One-click toggle between **Given** (Green) and **Not Given / Pending** (Amber).

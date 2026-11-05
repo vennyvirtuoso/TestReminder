@@ -25,6 +25,8 @@ export interface CompanyApplication {
   testGiven: boolean; // Checkbox: given / given not the test
   testDate?: string;
   testPlatform?: string; // HackerRank, Mettl, CodeSignal, etc.
+  shortlistedForInterview?: boolean; // Shortlisted for interview
+  interviewDate?: string;
   location?: string;
   ctc?: string;
   comments: CommentItem[]; // Comment section for each company
@@ -32,6 +34,6 @@ export interface CompanyApplication {
   updatedAt: string;
 }
 
-export type FilterTestStatus = 'all' | 'given' | 'not_given';
+export type FilterTestStatus = 'all' | 'given' | 'not_given' | 'shortlisted';
 export type FilterAppStatus = 'all' | ApplicationStatus | string;
 

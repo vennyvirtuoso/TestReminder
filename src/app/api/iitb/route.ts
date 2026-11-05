@@ -195,15 +195,23 @@ export async function POST(req: NextRequest) {
         });
       }
 
+      const statusStr = String(status).trim();
+      const isShortlisted =
+        item.shortlistedForInterview ??
+        (statusStr.toLowerCase().includes('shortlist') ||
+          statusStr.toLowerCase().includes('interview') ||
+          statusStr.toLowerCase().includes('select'));
+
       return {
         id: `iitb-api-${jobId || idx}-${Date.now()}`,
         companyName: String(companyName).trim(),
         profile: String(profile).trim(),
         jafId: jafId,
-        status: String(status).trim(),
+        status: statusStr,
         appliedDate: String(appliedDate).slice(0, 10),
         testGiven: false,
         testPlatform: hasTest ? testName : undefined,
+        shortlistedForInterview: Boolean(isShortlisted),
         comments: comments,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),

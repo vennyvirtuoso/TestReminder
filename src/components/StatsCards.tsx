@@ -19,7 +19,11 @@ export const StatsCards: React.FC<StatsCardsProps> = ({
   const testsGiven = applications.filter((a) => a.testGiven).length;
   const testsNotGiven = applications.filter((a) => !a.testGiven).length;
   const shortlisted = applications.filter(
-    (a) => a.status.toLowerCase().includes('shortlist') || a.status.toLowerCase().includes('interview') || a.status.toLowerCase().includes('select')
+    (a) =>
+      a.shortlistedForInterview ||
+      a.status.toLowerCase().includes('shortlist') ||
+      a.status.toLowerCase().includes('interview') ||
+      a.status.toLowerCase().includes('select')
   ).length;
 
   const percentage = total > 0 ? Math.round((testsGiven / total) * 100) : 0;
@@ -114,10 +118,17 @@ export const StatsCards: React.FC<StatsCardsProps> = ({
       </div>
 
       {/* Shortlisted / Progress */}
-      <div className="p-4 rounded-xl border border-slate-200 bg-white">
+      <div
+        onClick={() => onSelectTestFilter('shortlisted')}
+        className={`p-4 rounded-xl border transition cursor-pointer ${
+          selectedTestFilter === 'shortlisted'
+            ? 'bg-purple-50/70 border-purple-400 shadow-sm ring-1 ring-purple-300'
+            : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-xs'
+        }`}
+      >
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold text-purple-700 uppercase tracking-wider">
-            Shortlisted / Progress
+            Interview Shortlist
           </span>
           <div className="p-2 rounded-lg bg-purple-100 text-purple-700">
             <Award className="w-4 h-4" />
@@ -129,8 +140,11 @@ export const StatsCards: React.FC<StatsCardsProps> = ({
             {total > 0 ? `${Math.round((shortlisted / total) * 100)}% conversion` : '0'}
           </span>
         </div>
-        <div className="mt-2 text-xs text-slate-500">
-          <span>Interviews & Shortlists</span>
+        <div className="mt-2 text-xs text-purple-700 flex items-center justify-between">
+          <span>Filter: Shortlisted</span>
+          {selectedTestFilter === 'shortlisted' && (
+            <span className="text-[10px] font-bold text-purple-800 bg-purple-200 px-1.5 py-0.5 rounded">Active</span>
+          )}
         </div>
       </div>
     </div>

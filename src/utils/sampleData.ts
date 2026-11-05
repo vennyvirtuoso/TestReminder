@@ -11,6 +11,7 @@ export const SAMPLE_APPLICATIONS: CompanyApplication[] = [
     testGiven: true,
     testDate: '2024-10-20',
     testPlatform: 'HackerRank',
+    shortlistedForInterview: true,
     location: 'Gurugram',
     ctc: '₹85 LPA',
     comments: [
@@ -38,6 +39,7 @@ export const SAMPLE_APPLICATIONS: CompanyApplication[] = [
     testGiven: true,
     testDate: '2024-10-22',
     testPlatform: 'Google Form / Codesignal',
+    shortlistedForInterview: true,
     location: 'Bangalore / Hyderabad',
     ctc: '₹38 LPA',
     comments: [

@@ -20,6 +20,7 @@ import { CompanyApplication, ApplicationStatus } from '../types';
 interface CompanyItemProps {
   application: CompanyApplication;
   onToggleTestGiven: (id: string) => void;
+  onToggleInterviewShortlist?: (id: string) => void;
   onUpdateStatus: (id: string, newStatus: ApplicationStatus | string) => void;
   onAddComment: (id: string, commentText: string) => void;
   onDeleteComment: (companyId: string, commentId: string) => void;
@@ -41,6 +42,7 @@ const STATUS_COLORS: Record<string, string> = {
 export const CompanyItem: React.FC<CompanyItemProps> = ({
   application,
   onToggleTestGiven,
+  onToggleInterviewShortlist,
   onUpdateStatus,
   onAddComment,
   onDeleteComment,
@@ -113,6 +115,12 @@ export const CompanyItem: React.FC<CompanyItemProps> = ({
                   {application.jafId}
                 </span>
               )}
+
+              {application.shortlistedForInterview && (
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 font-bold border border-purple-300 inline-flex items-center gap-1 shadow-2xs">
+                  🎯 Interview Shortlist
+                </span>
+              )}
             </div>
 
             <div className="mt-1 flex flex-wrap items-center gap-y-1 gap-x-3 text-xs sm:text-sm text-slate-600">
@@ -136,9 +144,26 @@ export const CompanyItem: React.FC<CompanyItemProps> = ({
             </div>
           </div>
 
-          {/* Right: TEST GIVEN / NOT GIVEN Checkbox Control */}
-          <div className="flex items-center flex-wrap gap-3">
-            {/* The Main Checkbox */}
+          {/* Right: TEST GIVEN / SHORTLIST Controls */}
+          <div className="flex items-center flex-wrap gap-2.5">
+            {/* The Shortlisted for Interview Button */}
+            <button
+              type="button"
+              onClick={() => onToggleInterviewShortlist && onToggleInterviewShortlist(application.id)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer select-none ${
+                application.shortlistedForInterview
+                  ? 'bg-purple-600 text-white border-purple-700 shadow-xs hover:bg-purple-700'
+                  : 'bg-white text-slate-600 border-slate-200 hover:bg-purple-50 hover:text-purple-700 hover:border-purple-300'
+              }`}
+              title="Click to toggle: Shortlisted for Interview"
+            >
+              <span>{application.shortlistedForInterview ? '🎯' : '⚪'}</span>
+              <span>
+                {application.shortlistedForInterview ? 'Shortlisted' : 'Shortlist?'}
+              </span>
+            </button>
+
+            {/* The Main Test Checkbox */}
             <div
               onClick={() => onToggleTestGiven(application.id)}
               className={`flex items-center gap-2.5 px-3.5 py-2 rounded-xl border transition-all cursor-pointer select-none ${

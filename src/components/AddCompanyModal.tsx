@@ -16,6 +16,7 @@ export const AddCompanyModal: React.FC<AddCompanyModalProps> = ({ isOpen, onClos
   const [jafId, setJafId] = useState('');
   const [status, setStatus] = useState<ApplicationStatus>('Applied');
   const [testGiven, setTestGiven] = useState(false);
+  const [shortlistedForInterview, setShortlistedForInterview] = useState(false);
   const [testDate, setTestDate] = useState('');
   const [testPlatform, setTestPlatform] = useState('');
   const [initialComment, setInitialComment] = useState('');
@@ -32,6 +33,7 @@ export const AddCompanyModal: React.FC<AddCompanyModalProps> = ({ isOpen, onClos
       jafId: jafId.trim() || undefined,
       status: status,
       testGiven: testGiven,
+      shortlistedForInterview: shortlistedForInterview || status === 'Shortlisted' || status === 'Interview',
       testDate: testDate || undefined,
       testPlatform: testPlatform.trim() || undefined,
       comments: initialComment.trim()
@@ -51,6 +53,7 @@ export const AddCompanyModal: React.FC<AddCompanyModalProps> = ({ isOpen, onClos
     setJafId('');
     setStatus('Applied');
     setTestGiven(false);
+    setShortlistedForInterview(false);
     setTestDate('');
     setTestPlatform('');
     setInitialComment('');
@@ -138,18 +141,34 @@ export const AddCompanyModal: React.FC<AddCompanyModalProps> = ({ isOpen, onClos
               </select>
             </div>
 
-            {/* Test Given Checkbox */}
-            <div className="flex items-center gap-2 p-2 border border-slate-200 rounded-lg bg-slate-50">
-              <input
-                type="checkbox"
-                id="modal-test-given"
-                checked={testGiven}
-                onChange={(e) => setTestGiven(e.target.checked)}
-                className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
-              />
-              <label htmlFor="modal-test-given" className="text-xs font-semibold text-slate-800 cursor-pointer">
-                Test Given / Completed
-              </label>
+            {/* Test Given & Interview Shortlist Checkboxes */}
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2 p-2 border border-slate-200 rounded-lg bg-slate-50">
+                <input
+                  type="checkbox"
+                  id="modal-test-given"
+                  checked={testGiven}
+                  onChange={(e) => setTestGiven(e.target.checked)}
+                  className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                />
+                <label htmlFor="modal-test-given" className="text-xs font-semibold text-slate-800 cursor-pointer">
+                  Test Given / Completed
+                </label>
+              </div>
+
+              <div className="flex items-center gap-2 p-2 border border-purple-200 rounded-lg bg-purple-50/50">
+                <input
+                  type="checkbox"
+                  id="modal-shortlisted"
+                  checked={shortlistedForInterview}
+                  onChange={(e) => setShortlistedForInterview(e.target.checked)}
+                  className="w-4 h-4 text-purple-600 rounded border-purple-300 focus:ring-purple-500 cursor-pointer"
+                />
+                <label htmlFor="modal-shortlisted" className="text-xs font-bold text-purple-900 cursor-pointer flex items-center gap-1">
+                  <span>🎯</span>
+                  Shortlisted for Interview
+                </label>
+              </div>
             </div>
           </div>
 

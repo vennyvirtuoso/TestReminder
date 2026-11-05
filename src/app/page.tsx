@@ -47,16 +47,22 @@ function mergeApplications(
       jafId = `Profile #${num}`;
     }
 
+    const status = item.status || 'Applied';
+    const isShortlisted =
+      item.shortlistedForInterview ??
+      (status.toLowerCase().includes('shortlist') || status.toLowerCase().includes('interview'));
+
     return {
       id: item.id || `app-${Date.now()}-${idx}`,
       companyName: item.companyName || 'Company',
       profile: profile,
       jafId: jafId,
-      status: item.status || 'Applied',
+      status: status,
       appliedDate: item.appliedDate || '',
       testGiven: Boolean(item.testGiven),
       testDate: item.testDate || '',
       testPlatform: item.testPlatform || '',
+      shortlistedForInterview: Boolean(isShortlisted),
       comments: item.comments || [],
       createdAt: item.createdAt || new Date().toISOString(),
       updatedAt: item.updatedAt || new Date().toISOString(),
@@ -78,6 +84,8 @@ function mergeApplications(
         status: item.status || existing.status,
         jafId: item.jafId || existing.jafId,
         appliedDate: item.appliedDate || existing.appliedDate,
+        shortlistedForInterview:
+          item.shortlistedForInterview ?? existing.shortlistedForInterview ?? false,
         updatedAt: new Date().toISOString(),
       });
     } else {
@@ -228,13 +236,36 @@ export default function Home() {
     updateApplications(updated);
   };
 
+  // Toggle Shortlisted for Interview
+  const handleToggleInterviewShortlist = (id: string) => {
+    const updated = applications.map((app) => {
+      if (app.id === id) {
+        const next = !app.shortlistedForInterview;
+        return {
+          ...app,
+          shortlistedForInterview: next,
+          status: next && app.status === 'Applied' ? 'Shortlisted' : app.status,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return app;
+    });
+    updateApplications(updated);
+  };
+
   // Update Status
   const handleUpdateStatus = (id: string, newStatus: ApplicationStatus | string) => {
     const updated = applications.map((app) => {
       if (app.id === id) {
+        const isShortlisted =
+          newStatus === 'Shortlisted' ||
+          newStatus === 'Interview' ||
+          newStatus === 'Selected' ||
+          app.shortlistedForInterview;
         return {
           ...app,
           status: newStatus,
+          shortlistedForInterview: isShortlisted,
           updatedAt: new Date().toISOString(),
         };
       }
@@ -338,9 +369,10 @@ export default function Home() {
           }
         }
 
-        // Test Given filter
+        // Test Given / Shortlist filter
         if (testFilter === 'given' && !app.testGiven) return false;
         if (testFilter === 'not_given' && app.testGiven) return false;
+        if (testFilter === 'shortlisted' && !app.shortlistedForInterview) return false;
 
         // Status filter
         if (statusFilter !== 'all' && app.status.toLowerCase() !== statusFilter.toLowerCase()) {
@@ -509,6 +541,17 @@ export default function Home() {
                 <CheckCircle2 className="w-3 h-3" />
                 Test Given ({applications.filter((a) => a.testGiven).length})
               </button>
+              <button
+                onClick={() => setTestFilter('shortlisted')}
+                className={`px-2.5 py-1 rounded-full font-medium flex items-center gap-1 transition ${
+                  testFilter === 'shortlisted'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-purple-50 text-purple-800 hover:bg-purple-100 border border-purple-200'
+                }`}
+              >
+                <span>🎯</span>
+                Interview Shortlisted ({applications.filter((a) => a.shortlistedForInterview).length})
+              </button>
             </div>
 
             {/* Dropdown Filters: Application Status & Sort */}
@@ -548,6 +591,7 @@ export default function Home() {
                   key={app.id}
                   application={app}
                   onToggleTestGiven={handleToggleTestGiven}
+                  onToggleInterviewShortlist={handleToggleInterviewShortlist}
                   onUpdateStatus={handleUpdateStatus}
                   onAddComment={handleAddComment}
                   onDeleteComment={handleDeleteComment}
@@ -560,6 +604,7 @@ export default function Home() {
             <CompanyTableView
               applications={filteredApplications}
               onToggleTestGiven={handleToggleTestGiven}
+              onToggleInterviewShortlist={handleToggleInterviewShortlist}
               onUpdateStatus={handleUpdateStatus}
               onAddComment={handleAddComment}
               onDeleteComment={handleDeleteComment}

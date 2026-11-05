@@ -16,6 +16,7 @@ import { CompanyApplication, ApplicationStatus } from '../types';
 interface CompanyTableViewProps {
   applications: CompanyApplication[];
   onToggleTestGiven: (id: string) => void;
+  onToggleInterviewShortlist?: (id: string) => void;
   onUpdateStatus: (id: string, newStatus: ApplicationStatus | string) => void;
   onAddComment: (id: string, commentText: string) => void;
   onDeleteComment: (companyId: string, commentId: string) => void;
@@ -25,6 +26,7 @@ interface CompanyTableViewProps {
 export const CompanyTableView: React.FC<CompanyTableViewProps> = ({
   applications,
   onToggleTestGiven,
+  onToggleInterviewShortlist,
   onUpdateStatus,
   onAddComment,
   onDeleteComment,
@@ -56,6 +58,7 @@ export const CompanyTableView: React.FC<CompanyTableViewProps> = ({
               <th className="py-3 px-4">Role / Profile</th>
               <th className="py-3 px-4">JAF ID</th>
               <th className="py-3 px-4">Status</th>
+              <th className="py-3 px-4 text-center">Interview Shortlist</th>
               <th className="py-3 px-4 text-center">Test Status (Given?)</th>
               <th className="py-3 px-4">Test Date/Platform</th>
               <th className="py-3 px-4 text-center">Comments</th>
@@ -91,6 +94,21 @@ export const CompanyTableView: React.FC<CompanyTableViewProps> = ({
                         <option value="Waitlisted">Waitlisted</option>
                         <option value="Rejected">Rejected</option>
                       </select>
+                    </td>
+
+                    {/* Interview Shortlist Toggle Column */}
+                    <td className="py-3 px-4 text-center">
+                      <button
+                        onClick={() => onToggleInterviewShortlist && onToggleInterviewShortlist(app.id)}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border transition ${
+                          app.shortlistedForInterview
+                            ? 'bg-purple-100 text-purple-800 border-purple-300 hover:bg-purple-200 shadow-2xs'
+                            : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200'
+                        }`}
+                        title="Click to toggle: Shortlisted for Interview"
+                      >
+                        <span>{app.shortlistedForInterview ? '🎯 Shortlisted' : '— Not Yet'}</span>
+                      </button>
                     </td>
 
                     {/* Test Given Checkbox Column */}
@@ -164,7 +182,7 @@ export const CompanyTableView: React.FC<CompanyTableViewProps> = ({
                   {/* Expandable Comments Drawer for this row */}
                   {isExpanded && (
                     <tr className="bg-slate-50/90 border-t border-b border-blue-100">
-                      <td colSpan={9} className="p-4">
+                      <td colSpan={10} className="p-4">
                         <div className="max-w-3xl mx-auto space-y-3">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Lock, User, ArrowRight, Sparkles, Building2, ExternalLink } from 'lucide-react';
 import { getUserAccount, saveUserAccount, setActiveUserSession, saveUserApplications, getUserApplications } from '../utils/storage';
 import { SAMPLE_APPLICATIONS } from '../utils/sampleData';
@@ -14,6 +14,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isNewUserHint, setIsNewUserHint] = useState(false);
+
+  // Ensure browser address bar is completely stripped of any query parameters to prevent URI_TOO_LONG
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.search) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
   const handleLdapChange = (val: string) => {
     const clean = val.trim().toLowerCase();
@@ -59,11 +66,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         createdAt: new Date().toISOString(),
         lastLogin: new Date().toISOString(),
       });
+    }
 
-      // If user has no applications yet, prompt or give fresh state
-      const currentApps = getUserApplications(cleanId);
-      if (currentApps.length === 0) {
-        // Leave empty for clean import, or user can load sample
+    // Auto-migrate: If user has no applications yet, claim any unassigned 'my-apps' or sync data
+    const currentApps = getUserApplications(cleanId);
+    if (currentApps.length === 0) {
+      const unassigned = getUserApplications('my-apps');
+      if (unassigned.length > 0) {
+        saveUserApplications(cleanId, unassigned);
       }
     }
 

@@ -108,12 +108,15 @@ export default function Home() {
   useEffect(() => {
     let active = getActiveUserSession();
 
-    // Check if opened from Chrome Extension with sync data in URL
-    if (typeof window !== 'undefined') {
+    // Check if opened with sync data in URL - IMMEDIATELY clean the address bar
+    if (typeof window !== 'undefined' && window.location.search) {
       const urlParams = new URLSearchParams(window.location.search);
       const syncId = urlParams.get('sync_id') || urlParams.get('syncId');
       const syncLdap = urlParams.get('sync_ldap') || urlParams.get('ldap');
       const syncPayload = urlParams.get('sync_payload');
+
+      // Strip query parameters from browser address bar IMMEDIATELY to prevent URI_TOO_LONG on reloads
+      window.history.replaceState({}, document.title, window.location.pathname);
 
       if (syncLdap) {
         active = syncLdap.toLowerCase().trim();
@@ -121,7 +124,7 @@ export default function Home() {
         setCurrentUser(active);
       }
 
-      // Handle clean, short sync_id from API webhook (prevents URI_TOO_LONG)
+      // Handle clean, short sync_id from API webhook
       if (syncId) {
         fetch(`/api/sync?syncId=${encodeURIComponent(syncId)}`)
           .then((res) => res.json())
@@ -134,23 +137,23 @@ export default function Home() {
               const merged = mergeApplications(existingApps, data.applications);
               saveUserApplications(targetUser, merged);
               setApplications(merged);
-              window.history.replaceState({}, document.title, window.location.pathname);
               alert(`🎉 Success! Automatically synced ${data.applications.length} applied companies from IIT Bombay Placement Portal.`);
             }
           })
           .catch((err) => console.error('Failed to fetch sync data:', err));
       }
 
-      if (syncPayload && active) {
+      if (syncPayload) {
         try {
           const parsed = JSON.parse(decodeURIComponent(syncPayload));
           if (Array.isArray(parsed) && parsed.length > 0) {
-            const existingApps = getUserApplications(active);
+            const targetUser = active || syncLdap || 'my-apps';
+            setActiveUserSession(targetUser);
+            setCurrentUser(targetUser);
+            const existingApps = getUserApplications(targetUser);
             const merged = mergeApplications(existingApps, parsed);
-            saveUserApplications(active, merged);
+            saveUserApplications(targetUser, merged);
             setApplications(merged);
-            // Clean URL query params without reloading
-            window.history.replaceState({}, document.title, window.location.pathname);
             alert(`🎉 Success! Automatically synced ${parsed.length} applied companies from IIT Bombay Placement Portal.`);
           }
         } catch (e) {
@@ -197,6 +200,9 @@ export default function Home() {
     clearActiveUserSession();
     setCurrentUser(null);
     setApplications([]);
+    if (typeof window !== 'undefined') {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
   };
 
   // Save to active user's storage whenever applications change

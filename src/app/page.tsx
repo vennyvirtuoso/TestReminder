@@ -250,8 +250,8 @@ export default function Home() {
       const data = await res.json();
       if (data.success && Array.isArray(data.tests) && data.tests.length > 0) {
         let updatedCount = 0;
-        const currentApps = getUserApplications(currentUser);
-        const updatedApps = currentApps.map((app) => {
+        const baseApps = applications.length > 0 ? applications : getUserApplications(currentUser);
+        const updatedApps = baseApps.map((app) => {
           const matchedTest = data.tests.find((t: any) =>
             isCompanyMatch(t.companyName, app.companyName)
           );
@@ -282,12 +282,17 @@ export default function Home() {
         });
 
         if (updatedCount > 0) {
-          saveUserApplications(currentUser, updatedApps);
-          setApplications(updatedApps);
+          updateApplications(updatedApps);
           alert(
-            `🚨 Placement Blog Alert: New test dates & venues detected for ${updatedCount} applied companies!`
+            `🚨 Placement Blog Alert: Test dates & venues updated for ${updatedCount} applied companies! Check the Today & Upcoming alert banner at the top.`
           );
+        } else if (!silent) {
+          alert('✅ Scan complete! All test schedules for your applied companies are already up to date.');
         }
+      } else if (!silent) {
+        alert(
+          'No test notices found from the server. You can also paste announcements directly into the Placement Blog Scanner modal.'
+        );
       }
       setLastBlogScanTime(
         new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })

@@ -32,7 +32,7 @@ interface PlacementBlogModalProps {
 const SAMPLE_BLOG_NOTICES = `---
 Company: NK Securities Research Private Limited
 Profile: AI/ML Researcher
-Test Date: 10th November 2026
+Test Date: Today (5th November 2026)
 Test Time: 06:00 PM - 08:00 PM
 Venue: Online (HackerRank)
 Instructions: System requirements: Working webcam and microphone. Link will be sent 30 mins prior to the test.
@@ -40,15 +40,23 @@ Instructions: System requirements: Working webcam and microphone. Link will be s
 ---
 Company: Honda R&D
 Profile: AI & Advanced Mobility Researcher
-Test Date: 12th November 2026
-Test Time: 04:00 PM - 05:30 PM
+Test Date: Today (5th November 2026)
+Test Time: 07:30 PM - 09:00 PM
 Venue: Online (Aptitude & Technical Assessment)
 Instructions: 90 mins test consisting of core algorithms, ML theory, and problem solving.
 
 ---
+Company: Pace Stock Broking Services
+Profile: Jr. Quantitative Researcher
+Test Date: Today (5th November 2026)
+Test Time: 08:30 PM - 10:00 PM
+Venue: Online Test Portal
+Instructions: Quantitative aptitude, probability, and mental mathematics.
+
+---
 Company: Flipkart
 Profile: Data Scientist-9
-Test Date: 14th November 2026
+Test Date: Tomorrow (6th November 2026)
 Test Time: 07:00 PM - 08:30 PM
 Venue: Online (Mettl)
 Instructions: Mathematics, Statistics, Machine Learning, and Coding test.
@@ -56,7 +64,7 @@ Instructions: Mathematics, Statistics, Machine Learning, and Coding test.
 ---
 Company: IBM
 Profile: Software Engineer
-Test Date: 16th November 2026
+Test Date: 7th November 2026
 Test Time: 05:00 PM - 07:00 PM
 Venue: LH 101 / Online (Cognitive & Coding Assessment)
 Instructions: Offline in LH 101 for on-campus students; online link for remote applicants.
@@ -64,7 +72,7 @@ Instructions: Offline in LH 101 for on-campus students; online link for remote a
 ---
 Company: ACCENTURE SOLUTIONS PRIVATE LIMITED
 Profile: I&E - AI and Data FTE PG
-Test Date: 18th November 2026
+Test Date: 8th November 2026
 Test Time: 06:30 PM - 08:00 PM
 Venue: Online (Mock Assessment & Final Cognitive Test)
 Instructions: Mandatory mock test must be taken 24 hours prior to the final assessment.

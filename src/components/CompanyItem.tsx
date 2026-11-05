@@ -244,8 +244,26 @@ export const CompanyItem: React.FC<CompanyItemProps> = ({
               className="px-2.5 py-1 border border-slate-300 rounded bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
             <button
+              type="button"
+              onClick={() => {
+                const todayStr = 'Today (5 Nov 2026) at 06:00 PM';
+                const platformStr = testPlatform || 'Online (HackerRank)';
+                setTestDate(todayStr);
+                setTestPlatform(platformStr);
+                if (onUpdateTestDetails) {
+                  onUpdateTestDetails(application.id, todayStr, platformStr);
+                }
+                setIsEditingTest(false);
+              }}
+              className="px-2.5 py-1 bg-rose-100 hover:bg-rose-200 text-rose-800 rounded font-bold text-xs flex items-center gap-1 cursor-pointer"
+              title="Quickly set test to Today at 06:00 PM"
+            >
+              <span>🔥</span>
+              <span>Set Today (6 PM)</span>
+            </button>
+            <button
               onClick={handleSaveTestDetails}
-              className="px-3 py-1 bg-blue-600 text-white rounded font-medium hover:bg-blue-700"
+              className="px-3 py-1 bg-blue-600 text-white rounded font-medium hover:bg-blue-700 cursor-pointer"
             >
               Save
             </button>

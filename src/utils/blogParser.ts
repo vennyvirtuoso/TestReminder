@@ -29,6 +29,20 @@ export function isCompanyMatch(blogCompany: string, appCompany: string): boolean
   return tokensA.some((t) => tokensB.includes(t));
 }
 
+// Check if a date string represents today
+export function isTestToday(dateStr?: string): boolean {
+  if (!dateStr) return false;
+  const lower = dateStr.toLowerCase();
+  if (lower.includes('today')) return true;
+  const today = new Date();
+  const day = today.getDate();
+  const monthShort = today.toLocaleString('en-US', { month: 'short' }).toLowerCase();
+  const todayIso = today.toISOString().slice(0, 10);
+  if (lower.includes(todayIso)) return true;
+  if (lower.includes(`${day} ${monthShort}`) || lower.includes(`${day}th ${monthShort}`)) return true;
+  return false;
+}
+
 // Parse dates in various Indian formats: "10th Nov 2026", "10/11/2026", "Nov 10", "10-11-2026"
 function extractDate(text: string): string | null {
   // Pattern 1: "10th November 2026", "12 Nov 2026", "15 November"

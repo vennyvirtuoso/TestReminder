@@ -241,6 +241,7 @@ function extractVenue(text: string): string | null {
   const match = text.match(venueKeywords);
   if (match) return match[1].trim();
 
+  if (/window\s*test/i.test(text)) return 'Online Window Test';
   if (/hackerrank/i.test(text)) return 'Online (HackerRank)';
   if (/codesignal/i.test(text)) return 'Online (CodeSignal)';
   if (/mettl/i.test(text)) return 'Online (Mettl)';
@@ -278,14 +279,37 @@ export function parsePlacementBlog(rawText: string): BlogTestAnnouncement[] {
 
     // Extract company name
     let company = '';
-    const compMatch = block.match(/(?:Company|Organization|Firm|Employer)\s*[:=-]\s*([^\n]+)/i);
+
+    // Strategy 1: Explicit label "Company: XYZ" or "Notice for: XYZ"
+    const compMatch = block.match(/(?:Company|Organization|Firm|Employer|Notice for)\s*[:=-]\s*([^\n]+)/i);
     if (compMatch) {
       company = compMatch[1].trim();
-    } else {
-      // First line might be company name if it looks like a title
+    }
+
+    // Strategy 2: Title with separator like "Hyde AI | Window Test Announcement" or "Google - Test Notice"
+    if (!company) {
       const firstLine = block.split('\n')[0].replace(/^#+\s*/, '').trim();
-      if (firstLine.length < 60 && !/test|schedule|date|venue/i.test(firstLine)) {
-        company = firstLine;
+      if (firstLine.includes('|') || firstLine.includes('–') || firstLine.includes('—') || firstLine.includes(' - ')) {
+        const potentialComp = firstLine.split(/[|–—-]/)[0].trim();
+        if (potentialComp.length >= 2 && potentialComp.length <= 40 && !/^(?:test|schedule|notice|update|important|announcement)\b/i.test(potentialComp)) {
+          company = potentialComp;
+        }
+      }
+    }
+
+    // Strategy 3: "<Company> will be conducting a ... test/assessment"
+    if (!company) {
+      const conductMatch = block.match(/([A-Z][A-Za-z0-9&.\s]{1,40}?)\s+will\s+be\s+conducting/i);
+      if (conductMatch && !/the|this|students|iitb|iit\s*bombay/i.test(conductMatch[1].trim())) {
+        company = conductMatch[1].trim();
+      }
+    }
+
+    // Strategy 4: Clean first line if short
+    if (!company) {
+      const firstLine = block.split('\n')[0].replace(/^#+\s*/, '').trim();
+      if (firstLine.length >= 2 && firstLine.length < 50 && !/date|venue|time|instruction/i.test(firstLine)) {
+        company = firstLine.replace(/\s*[|–—].*$/, '').replace(/\s*-\s*.*$/, '').trim();
       }
     }
 
@@ -297,7 +321,10 @@ export function parsePlacementBlog(rawText: string): BlogTestAnnouncement[] {
     }
 
     const testDate = extractDate(block);
-    const testTime = extractTime(block);
+    let testTime = extractTime(block);
+    if (testTime && /deadline/i.test(block) && !testTime.includes('Deadline')) {
+      testTime = `${testTime} (Deadline)`;
+    }
     const venue = extractVenue(block);
 
     // If we found at least a company name and a date/venue, create an announcement
@@ -309,7 +336,7 @@ export function parsePlacementBlog(rawText: string): BlogTestAnnouncement[] {
         profile: profile || undefined,
         testDate: testDate || 'Date TBA',
         testTime: testTime || undefined,
-        venue: venue || 'TBA',
+        venue: venue || 'Online',
         instructions: block.slice(0, 300),
       });
     }

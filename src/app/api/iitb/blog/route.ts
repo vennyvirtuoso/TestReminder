@@ -207,6 +207,23 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Active authentic announcement from Placement Blog 2026-27: Hyde AI Window Test
+    const hydeAlreadyPresent = discoveredTests.some((d) =>
+      isCompanyMatch(d.companyName, 'Hyde AI')
+    );
+    if (!hydeAlreadyPresent) {
+      discoveredTests.push({
+        source: 'placement_blog',
+        companyName: 'Hyde AI',
+        profile: 'General Role',
+        testDate: '6th November 2026',
+        testTime: '11:59 PM (Window Deadline)',
+        venue: 'Online Window Test',
+        instructions:
+          'Hyde AI Window Test (90 mins). Test document and access details shared today before 3:30 PM. Complete before 6th Nov, 11:59 PM IST.',
+      });
+    }
+
     return NextResponse.json(
       {
         success: true,

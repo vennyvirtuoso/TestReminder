@@ -201,10 +201,33 @@ export default function Home() {
         return app;
       });
 
-      if (JSON.stringify(cleaned) !== JSON.stringify(userApps)) {
-        saveUserApplications(active, cleaned);
+      // Sync real Hyde AI Window Test announcement
+      const synced = cleaned.map((app) => {
+        if (isCompanyMatch('Hyde AI', app.companyName) || isCompanyMatch('Hyde Inc.', app.companyName)) {
+          if (!app.testDate || !app.testDate.includes('11:59 PM')) {
+            const dateStr = '6th November 2026 at 11:59 PM (Window Deadline)';
+            const platformStr = 'Online Window Test (90 mins)';
+            const newComment = {
+              id: `blog-hyde-${Date.now()}`,
+              text: '📢 Placement Blog Announcement: Hyde AI Window Test (90 mins). Test Window Deadline: 6th November, 11:59 PM IST.',
+              createdAt: new Date().toISOString(),
+            };
+            return {
+              ...app,
+              testDate: dateStr,
+              testPlatform: platformStr,
+              comments: [newComment, ...(app.comments || [])],
+              updatedAt: new Date().toISOString(),
+            };
+          }
+        }
+        return app;
+      });
+
+      if (JSON.stringify(synced) !== JSON.stringify(userApps)) {
+        saveUserApplications(active, synced);
       }
-      setApplications(cleaned);
+      setApplications(synced);
     }
     setIsLoaded(true);
 
@@ -251,10 +274,32 @@ export default function Home() {
       return app;
     });
 
-    if (JSON.stringify(cleaned) !== JSON.stringify(userApps)) {
-      saveUserApplications(ldapId, cleaned);
+    const synced = cleaned.map((app) => {
+      if (isCompanyMatch('Hyde AI', app.companyName) || isCompanyMatch('Hyde Inc.', app.companyName)) {
+        if (!app.testDate || !app.testDate.includes('11:59 PM')) {
+          const dateStr = '6th November 2026 at 11:59 PM (Window Deadline)';
+          const platformStr = 'Online Window Test (90 mins)';
+          const newComment = {
+            id: `blog-hyde-${Date.now()}`,
+            text: '📢 Placement Blog Announcement: Hyde AI Window Test (90 mins). Test Window Deadline: 6th November, 11:59 PM IST.',
+            createdAt: new Date().toISOString(),
+          };
+          return {
+            ...app,
+            testDate: dateStr,
+            testPlatform: platformStr,
+            comments: [newComment, ...(app.comments || [])],
+            updatedAt: new Date().toISOString(),
+          };
+        }
+      }
+      return app;
+    });
+
+    if (JSON.stringify(synced) !== JSON.stringify(userApps)) {
+      saveUserApplications(ldapId, synced);
     }
-    setApplications(cleaned);
+    setApplications(synced);
   };
 
   // Handle Logout

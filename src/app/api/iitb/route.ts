@@ -25,27 +25,58 @@ export async function POST(req: NextRequest) {
 
     const cleanToken = token.trim().replace(/^Bearer\s+/i, '');
 
+    // Extract student's applicantId from JWT payload
+    let applicantId: string | number | undefined;
+    try {
+      const parts = cleanToken.split('.');
+      if (parts.length >= 2) {
+        const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        const payloadStr = Buffer.from(base64, 'base64').toString('utf8');
+        const payload = JSON.parse(payloadStr);
+        applicantId = payload.id || payload.applicantId || payload.userId || payload.sub;
+        console.log('[IITB Direct API] Decoded JWT payload, applicantId:', applicantId, 'role:', payload.role);
+      }
+    } catch (e) {
+      console.warn('[IITB Direct API] Could not decode JWT payload:', e);
+    }
+
     // Call IIT Bombay's official REST API endpoint
-    const iitbApiUrl = 'https://campus.placements.iitb.ac.in/api/v1/job/application';
-    console.log('[IITB Direct API] Fetching applications from', iitbApiUrl);
+    let iitbApiUrl = 'https://campus.placements.iitb.ac.in/api/v1/job/application';
+    if (applicantId) {
+      iitbApiUrl += `?applicantId=${encodeURIComponent(applicantId.toString())}`;
+    }
+
+    console.log('[IITB Direct API] Fetching applications from:', iitbApiUrl);
 
     const iitbRes = await fetch(iitbApiUrl, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${cleanToken}`,
         Accept: 'application/json, text/plain, */*',
+        Origin: 'https://campus.placements.iitb.ac.in',
+        Referer: 'https://campus.placements.iitb.ac.in/applicant/application',
         'User-Agent':
           'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        Referer: 'https://campus.placements.iitb.ac.in/applicant/application',
       },
     });
 
     if (!iitbRes.ok) {
       const errText = await iitbRes.text();
       console.error('[IITB Direct API] Error from IITB server:', iitbRes.status, errText);
+      let parsedErr: any = null;
+      try {
+        parsedErr = JSON.parse(errText);
+      } catch {}
+
+      const msg =
+        parsedErr?.message ||
+        parsedErr?.error ||
+        errText.slice(0, 200) ||
+        `Status ${iitbRes.status}`;
+
       return NextResponse.json(
         {
-          error: `IIT Bombay portal returned status ${iitbRes.status}. Your session token may be expired or invalid. Please check your login.`,
+          error: `IIT Bombay portal error (${iitbRes.status}): ${msg}`,
           details: errText.slice(0, 200),
         },
         { status: iitbRes.status, headers: { 'Access-Control-Allow-Origin': '*' } }

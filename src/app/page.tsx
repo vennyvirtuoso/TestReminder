@@ -18,6 +18,7 @@ import {
 import { CompanyApplication, ApplicationStatus, FilterTestStatus } from '../types';
 import {
   getActiveUserSession,
+  setActiveUserSession,
   clearActiveUserSession,
   getUserApplications,
   saveUserApplications,
@@ -30,6 +31,50 @@ import { CompanyTableView } from '../components/CompanyTableView';
 import { ImportModal } from '../components/ImportModal';
 import { AddCompanyModal } from '../components/AddCompanyModal';
 import { LoginScreen } from '../components/LoginScreen';
+
+function mergeApplications(
+  existingApps: CompanyApplication[],
+  incoming: Partial<CompanyApplication>[]
+): CompanyApplication[] {
+  const newItems: CompanyApplication[] = incoming.map((item, idx) => ({
+    id: item.id || `app-${Date.now()}-${idx}`,
+    companyName: item.companyName || 'Company',
+    profile: item.profile || 'General',
+    jafId: item.jafId || undefined,
+    status: item.status || 'Applied',
+    appliedDate: item.appliedDate || '',
+    testGiven: Boolean(item.testGiven),
+    testDate: item.testDate || '',
+    testPlatform: item.testPlatform || '',
+    comments: item.comments || [],
+    createdAt: item.createdAt || new Date().toISOString(),
+    updatedAt: item.updatedAt || new Date().toISOString(),
+  }));
+
+  const existingMap = new Map<string, CompanyApplication>();
+  existingApps.forEach((app) => {
+    const key = `${app.companyName.toLowerCase()}_${app.profile.toLowerCase()}`;
+    existingMap.set(key, app);
+  });
+
+  newItems.forEach((item) => {
+    const key = `${item.companyName.toLowerCase()}_${item.profile.toLowerCase()}`;
+    if (existingMap.has(key)) {
+      const existing = existingMap.get(key)!;
+      existingMap.set(key, {
+        ...existing,
+        status: item.status || existing.status,
+        jafId: item.jafId || existing.jafId,
+        appliedDate: item.appliedDate || existing.appliedDate,
+        updatedAt: new Date().toISOString(),
+      });
+    } else {
+      existingMap.set(key, item);
+    }
+  });
+
+  return Array.from(existingMap.values());
+}
 
 export default function Home() {
   const [currentUser, setCurrentUser] = useState<string | null>(null);
@@ -47,15 +92,64 @@ export default function Home() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  // Initialize session on mount
+  // Initialize session and check for incoming sync data
   useEffect(() => {
-    const active = getActiveUserSession();
+    let active = getActiveUserSession();
+
+    // Check if opened from Chrome Extension with sync data in URL
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const syncLdap = urlParams.get('sync_ldap');
+      const syncPayload = urlParams.get('sync_payload');
+
+      if (syncLdap) {
+        active = syncLdap.toLowerCase().trim();
+        setActiveUserSession(active);
+        setCurrentUser(active);
+      }
+
+      if (syncPayload && active) {
+        try {
+          const parsed = JSON.parse(decodeURIComponent(syncPayload));
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const existingApps = getUserApplications(active);
+            const merged = mergeApplications(existingApps, parsed);
+            saveUserApplications(active, merged);
+            setApplications(merged);
+            // Clean URL query params without reloading
+            window.history.replaceState({}, document.title, window.location.pathname);
+            alert(`🎉 Success! Automatically synced ${parsed.length} applied companies from IIT Bombay Placement Portal.`);
+          }
+        } catch (e) {
+          console.error('Failed to unpack sync payload', e);
+        }
+      }
+    }
+
     if (active) {
       setCurrentUser(active);
       const userApps = getUserApplications(active);
       setApplications(userApps);
     }
     setIsLoaded(true);
+
+    // Listen for window postMessage from Chrome Extension
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'IITB_EXTENSION_SYNC' && event.data?.applications) {
+        const incoming = event.data.applications;
+        const targetLdap = event.data.ldapId || getActiveUserSession();
+        if (targetLdap && Array.isArray(incoming)) {
+          const existingApps = getUserApplications(targetLdap);
+          const merged = mergeApplications(existingApps, incoming);
+          saveUserApplications(targetLdap, merged);
+          setApplications(merged);
+          alert(`🎉 Live Sync: Updated ${incoming.length} companies from IITB Placement Portal!`);
+        }
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
   }, []);
 
   // Handle Login Success
@@ -173,44 +267,7 @@ export default function Home() {
 
   // Import Applications
   const handleImportApplications = (imported: Partial<CompanyApplication>[]) => {
-    const newItems: CompanyApplication[] = imported.map((item, idx) => ({
-      id: item.id || `app-${Date.now()}-${idx}`,
-      companyName: item.companyName || 'Company',
-      profile: item.profile || 'General',
-      jafId: item.jafId || undefined,
-      status: item.status || 'Applied',
-      appliedDate: item.appliedDate || '',
-      testGiven: Boolean(item.testGiven),
-      testDate: item.testDate || '',
-      testPlatform: item.testPlatform || '',
-      comments: item.comments || [],
-      createdAt: item.createdAt || new Date().toISOString(),
-      updatedAt: item.updatedAt || new Date().toISOString(),
-    }));
-
-    // Merge by companyName + profile to avoid duplicate entries
-    const existingMap = new Map<string, CompanyApplication>();
-    applications.forEach((app) => {
-      const key = `${app.companyName.toLowerCase()}_${app.profile.toLowerCase()}`;
-      existingMap.set(key, app);
-    });
-
-    newItems.forEach((item) => {
-      const key = `${item.companyName.toLowerCase()}_${item.profile.toLowerCase()}`;
-      if (existingMap.has(key)) {
-        const existing = existingMap.get(key)!;
-        existingMap.set(key, {
-          ...existing,
-          status: item.status || existing.status,
-          jafId: item.jafId || existing.jafId,
-          appliedDate: item.appliedDate || existing.appliedDate,
-        });
-      } else {
-        existingMap.set(key, item);
-      }
-    });
-
-    const merged = Array.from(existingMap.values());
+    const merged = mergeApplications(applications, imported);
     updateApplications(merged);
   };
 

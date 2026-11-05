@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "IIT Bombay Placement Auto-Sync",
+  "version": "1.0.0",
+  "description": "Automatically scrapes and syncs your applied companies from campus.placements.iitb.ac.in to your Tracker web app.",
+  "permissions": [
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://campus.placements.iitb.ac.in/*",
+    "http://localhost:3000/*",
+    "https://*.vercel.app/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "IITB Placement Auto-Sync"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://campus.placements.iitb.ac.in/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

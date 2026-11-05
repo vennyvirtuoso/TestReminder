@@ -1,0 +1,220 @@
+// IIT Bombay Placement Portal Content Script
+(function () {
+  console.log('[IITB Placement Auto-Sync] Content script loaded on', window.location.href);
+
+  // Scrape applied companies from the page
+  function scrapeCompanies() {
+    const rows = Array.from(document.querySelectorAll('table tbody tr, table tr'));
+    const items = [];
+
+    rows.forEach((r, idx) => {
+      const cells = Array.from(r.querySelectorAll('td')).map((c) => c.innerText.trim());
+      if (cells.length >= 2) {
+        let company = '',
+          profile = 'General Role',
+          jaf = '',
+          status = 'Applied',
+          date = '';
+
+        // Check if first column is serial number (e.g. 1, 2, 3...)
+        if (/^\d+$/.test(cells[0])) {
+          company = cells[1] || '';
+          profile = cells[2] || 'General Role';
+          jaf = cells[3] || '';
+          status = cells[4] || 'Applied';
+          date = cells[5] || '';
+        } else {
+          company = cells[0] || '';
+          profile = cells[1] || 'General Role';
+          jaf = cells[2] || '';
+          status = cells[3] || 'Applied';
+          date = cells[4] || '';
+        }
+
+        // Filter out header rows
+        if (
+          company &&
+          !company.toLowerCase().includes('company') &&
+          !company.toLowerCase().includes('sr.')
+        ) {
+          items.push({
+            id: `iitb-${Date.now()}-${idx}`,
+            companyName: company.replace(/\s+/g, ' ').trim(),
+            profile: profile.replace(/\s+/g, ' ').trim(),
+            jafId: jaf.trim(),
+            status: normalizeStatus(status),
+            appliedDate: date.trim(),
+            testGiven: false,
+            comments: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
+        }
+      }
+    });
+
+    return items;
+  }
+
+  function normalizeStatus(raw) {
+    const s = (raw || '').toLowerCase();
+    if (s.includes('shortlist')) return 'Shortlisted';
+    if (s.includes('interview')) return 'Interview';
+    if (s.includes('select')) return 'Selected';
+    if (s.includes('reject') || s.includes('not shortlisted')) return 'Rejected';
+    if (s.includes('waitlist')) return 'Waitlisted';
+    if (s.includes('closed')) return 'Closed';
+    return 'Applied';
+  }
+
+  // Detect student LDAP ID / Roll Number from page content
+  function detectStudentLdap() {
+    // Check common header / profile text
+    const pageText = document.body.innerText || '';
+    // Look for IITB roll number pattern: e.g. 210050012, 22b090034, 20d070014, etc.
+    const rollMatch = pageText.match(/\b([1-2][0-9]{8}|[1-2][0-9][a-zA-Z][0-9]{6})\b/i);
+    if (rollMatch) {
+      return rollMatch[1];
+    }
+    return '';
+  }
+
+  // Inject floating sync widget on campus.placements.iitb.ac.in
+  function injectFloatingWidget(companies) {
+    if (document.getElementById('iitb-sync-floating-widget')) return;
+
+    const widget = document.createElement('div');
+    widget.id = 'iitb-sync-floating-widget';
+    widget.style.cssText = `
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 999999;
+      background: #ffffff;
+      border: 1px solid #0284c7;
+      border-radius: 14px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+      padding: 14px 18px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 13px;
+      color: #0f172a;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: 320px;
+      animation: iitbFadeIn 0.3s ease-out;
+    `;
+
+    const count = companies.length;
+    const detectedLdap = detectStudentLdap();
+
+    widget.innerHTML = `
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="font-size: 16px;">🎓</span>
+          <strong style="color: #0369a1; font-weight: 700;">IITB Placement Tracker</strong>
+        </div>
+        <button id="iitb-widget-close" style="border: none; background: transparent; cursor: pointer; color: #94a3b8; font-size: 16px; padding: 0 4px;">✕</button>
+      </div>
+      <div style="font-size: 12px; color: #475569; line-height: 1.4;">
+        Detected <strong>${count}</strong> applied ${count === 1 ? 'company' : 'companies'} on this page.
+        ${detectedLdap ? `<div style="margin-top: 2px; color: #0284c7; font-weight: 600;">Student ID: ${detectedLdap}</div>` : ''}
+      </div>
+      <button id="iitb-widget-sync-btn" style="
+        background: #0284c7;
+        color: #ffffff;
+        border: none;
+        padding: 8px 14px;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        transition: background 0.2s;
+      ">
+        🚀 Sync to Tracker Web App
+      </button>
+    `;
+
+    document.body.appendChild(widget);
+
+    document.getElementById('iitb-widget-close').onclick = () => {
+      widget.remove();
+    };
+
+    document.getElementById('iitb-widget-sync-btn').onclick = async () => {
+      const btn = document.getElementById('iitb-widget-sync-btn');
+      btn.innerText = 'Syncing...';
+      btn.style.background = '#0369a1';
+
+      chrome.storage.sync.get(['vercelAppUrl', 'studentLdap'], async (res) => {
+        const appUrl = (res.vercelAppUrl || 'http://localhost:3000').replace(/\/+$/, '');
+        const targetLdap = res.studentLdap || detectedLdap || 'my-apps';
+
+        // 1. Post to API if reachable
+        try {
+          await fetch(`${appUrl}/api/sync`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ldapId: targetLdap, applications: companies }),
+          });
+        } catch (e) {
+          console.warn('API post failed, falling back to direct tab open', e);
+        }
+
+        // 2. Open Web App tab with encoded sync payload
+        const payloadStr = encodeURIComponent(JSON.stringify(companies));
+        const redirectUrl = `${appUrl}?sync_ldap=${encodeURIComponent(targetLdap)}&sync_payload=${payloadStr}`;
+        window.open(redirectUrl, '_blank');
+
+        btn.innerText = '✓ Synced!';
+        btn.style.background = '#10b981';
+        setTimeout(() => {
+          btn.innerText = '🚀 Sync to Tracker Web App';
+          btn.style.background = '#0284c7';
+        }, 3000);
+      });
+    };
+  }
+
+  // Run automatically when DOM is ready
+  function init() {
+    const companies = scrapeCompanies();
+    if (companies.length > 0) {
+      console.log(`[IITB Placement Auto-Sync] Scraped ${companies.length} companies.`);
+      injectFloatingWidget(companies);
+    }
+  }
+
+  // Listen for popup messages
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === 'SCRAPE_COMPANIES') {
+      const companies = scrapeCompanies();
+      const ldap = detectStudentLdap();
+      sendResponse({ companies, ldap });
+    }
+    return true;
+  });
+
+  // Observe page mutations in case table loads asynchronously via AJAX/React
+  const observer = new MutationObserver(() => {
+    if (!document.getElementById('iitb-sync-floating-widget')) {
+      const companies = scrapeCompanies();
+      if (companies.length > 0) {
+        injectFloatingWidget(companies);
+      }
+    }
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true });
+
+  // Initial attempt
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    init();
+  } else {
+    window.addEventListener('DOMContentLoaded', init);
+  }
+})();

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Copy, Check, Bookmark, FileText, Code, Database, Sparkles, AlertCircle } from 'lucide-react';
+import { X, Copy, Check, Bookmark, FileText, Code, Database, Sparkles, AlertCircle, Puzzle, ExternalLink } from 'lucide-react';
 import { parseIITBPortalInput } from '../utils/parser';
 import { getBookmarkletCode, getConsoleSnippet } from '../utils/bookmarklet';
 import { CompanyApplication } from '../types';
@@ -19,7 +19,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
   onImportApplications,
   onLoadSample,
 }) => {
-  const [activeTab, setActiveTab] = useState<'bookmarklet' | 'paste' | 'console' | 'sample'>('bookmarklet');
+  const [activeTab, setActiveTab] = useState<'extension' | 'bookmarklet' | 'paste' | 'console' | 'sample'>('extension');
   const [rawText, setRawText] = useState('');
   const [copiedBookmarklet, setCopiedBookmarklet] = useState(false);
   const [copiedConsole, setCopiedConsole] = useState(false);
@@ -84,6 +84,17 @@ export const ImportModal: React.FC<ImportModalProps> = ({
         {/* Tab Navigation */}
         <div className="flex border-b border-slate-200 bg-slate-50/80 px-6 pt-2 gap-2 text-xs font-semibold overflow-x-auto">
           <button
+            onClick={() => setActiveTab('extension')}
+            className={`pb-2.5 px-3 border-b-2 flex items-center gap-1.5 transition whitespace-nowrap ${
+              activeTab === 'extension'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Puzzle className="w-4 h-4 text-emerald-600" />
+            Chrome Extension (Auto-Sync)
+          </button>
+          <button
             onClick={() => setActiveTab('bookmarklet')}
             className={`pb-2.5 px-3 border-b-2 flex items-center gap-1.5 transition whitespace-nowrap ${
               activeTab === 'bookmarklet'
@@ -131,6 +142,55 @@ export const ImportModal: React.FC<ImportModalProps> = ({
 
         {/* Tab Content */}
         <div className="p-6 overflow-y-auto space-y-4">
+          {/* TAB 0: CHROME EXTENSION (AUTO-SYNC) */}
+          {activeTab === 'extension' && (
+            <div className="space-y-4">
+              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-950 space-y-2">
+                <div className="flex items-center gap-2 font-bold text-sm text-emerald-900">
+                  <Puzzle className="w-4 h-4 text-emerald-600" />
+                  <span>Automatic Sync via Chrome Extension</span>
+                </div>
+                <p className="text-emerald-800 leading-relaxed">
+                  Log in to the placement portal normally through your IITB SSO. The extension will automatically detect all applied companies and push them to your tracker in real time!
+                </p>
+              </div>
+
+              <div className="space-y-3 text-xs text-slate-700">
+                <h4 className="font-bold text-slate-900 text-sm">How to load in Chrome / Brave (30 seconds):</h4>
+                <ol className="list-decimal pl-5 space-y-2">
+                  <li>
+                    Open Chrome and type in address bar: <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-slate-900">chrome://extensions</code>
+                  </li>
+                  <li>
+                    Enable <strong>&ldquo;Developer mode&rdquo;</strong> toggle in the top-right corner.
+                  </li>
+                  <li>
+                    Click the <strong>&ldquo;Load unpacked&rdquo;</strong> button in the top-left.
+                  </li>
+                  <li>
+                    Select the <code className="bg-blue-50 text-blue-800 px-1.5 py-0.5 rounded font-mono">extension</code> folder from your project directory.
+                  </li>
+                  <li>
+                    Open <a href="https://campus.placements.iitb.ac.in/applicant/application" target="_blank" rel="noopener noreferrer" className="text-blue-600 font-semibold underline inline-flex items-center gap-0.5">campus.placements.iitb.ac.in <ExternalLink className="w-3 h-3" /></a> and log in via IITB SSO.
+                  </li>
+                  <li>
+                    A floating <strong>&ldquo;🚀 Sync to Tracker Web App&rdquo;</strong> widget will automatically appear on the page! Click it to sync immediately.
+                  </li>
+                </ol>
+              </div>
+
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
+                <div>
+                  <span className="font-semibold text-slate-800">Extension folder path:</span>
+                  <div className="font-mono text-slate-500 mt-0.5 select-all">TestReminder/extension</div>
+                </div>
+                <span className="px-2 py-1 bg-emerald-100 text-emerald-800 font-bold rounded-md text-[11px]">
+                  Manifest V3 Ready
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* TAB 1: BOOKMARKLET */}
           {activeTab === 'bookmarklet' && (
             <div className="space-y-4">

@@ -141,36 +141,69 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // 3. Query portal activity endpoint
-      try {
-        const activityUrl = applicantId
-          ? `https://campus.placements.iitb.ac.in/api/v1/activity/testppt?applicantId=${encodeURIComponent(
-              applicantId.toString()
-            )}`
-          : 'https://campus.placements.iitb.ac.in/api/v1/activity/testppt';
+      // 3. Query portal activity endpoints (testppt, activity/test, applicant/test, schedule)
+      const activityEndpoints = [
+        `https://campus.placements.iitb.ac.in/api/v1/activity/testppt${applicantId ? `?applicantId=${encodeURIComponent(applicantId.toString())}` : ''}`,
+        `https://campus.placements.iitb.ac.in/api/v1/activity/test${applicantId ? `?applicantId=${encodeURIComponent(applicantId.toString())}` : ''}`,
+        `https://campus.placements.iitb.ac.in/api/v1/applicant/test${applicantId ? `?applicantId=${encodeURIComponent(applicantId.toString())}` : ''}`,
+        `https://campus.placements.iitb.ac.in/api/v1/activity/schedule${applicantId ? `?applicantId=${encodeURIComponent(applicantId.toString())}` : ''}`,
+      ];
 
-        const actRes = await fetch(activityUrl, { method: 'GET', headers });
-        if (actRes.ok) {
-          const actData = await actRes.json();
-          const items = Array.isArray(actData) ? actData : actData.data || [];
-          for (const item of items) {
-            const compName =
-              item.company?.name || item.companyName || item.job?.company?.name || item.title;
-            const dateStr = item.dateTime || item.date || item.startTime;
-            const venue = item.venueDetails || item.venue || item.platform || 'Online';
-            if (compName && dateStr) {
-              discoveredTests.push({
-                source: 'portal_activity',
-                companyName: String(compName).trim(),
-                testDate: String(dateStr).slice(0, 10),
-                testTime: String(dateStr).slice(11, 16) || undefined,
-                venue: String(venue).trim(),
-              });
+      for (const actUrl of activityEndpoints) {
+        try {
+          const actRes = await fetch(actUrl, { method: 'GET', headers });
+          if (actRes.ok) {
+            const actData = await actRes.json();
+            const items = Array.isArray(actData)
+              ? actData
+              : Array.isArray(actData.data)
+              ? actData.data
+              : Array.isArray(actData.tests)
+              ? actData.tests
+              : Array.isArray(actData.activities)
+              ? actData.activities
+              : [];
+
+            for (const item of items) {
+              const compName =
+                item.company?.name ||
+                item.companyName ||
+                item.job?.company?.name ||
+                item.title ||
+                item.name;
+              const dateStr = item.dateTime || item.date || item.startTime || item.testDate;
+              const venue =
+                item.venueDetails ||
+                item.venue ||
+                item.platform ||
+                item.url ||
+                'Online';
+              const profile =
+                item.designation ||
+                item.profile ||
+                item.job?.designation ||
+                undefined;
+
+              if (compName && dateStr) {
+                const formattedDate = String(dateStr).slice(0, 10);
+                const time =
+                  String(dateStr).length > 10
+                    ? String(dateStr).slice(11, 16)
+                    : item.time || item.startTime;
+                discoveredTests.push({
+                  source: 'portal_api',
+                  companyName: String(compName).trim(),
+                  profile: profile ? String(profile).trim() : undefined,
+                  testDate: formattedDate,
+                  testTime: time || undefined,
+                  venue: String(venue).trim(),
+                });
+              }
             }
           }
+        } catch (err) {
+          console.warn('[IITB Blog API] Error fetching activity endpoint:', actUrl, err);
         }
-      } catch (err) {
-        console.warn('[IITB Blog API] Error fetching activity/testppt:', err);
       }
     }
 

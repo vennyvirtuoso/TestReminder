@@ -111,13 +111,34 @@ export default function Home() {
     // Check if opened from Chrome Extension with sync data in URL
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
-      const syncLdap = urlParams.get('sync_ldap');
+      const syncId = urlParams.get('sync_id') || urlParams.get('syncId');
+      const syncLdap = urlParams.get('sync_ldap') || urlParams.get('ldap');
       const syncPayload = urlParams.get('sync_payload');
 
       if (syncLdap) {
         active = syncLdap.toLowerCase().trim();
         setActiveUserSession(active);
         setCurrentUser(active);
+      }
+
+      // Handle clean, short sync_id from API webhook (prevents URI_TOO_LONG)
+      if (syncId) {
+        fetch(`/api/sync?syncId=${encodeURIComponent(syncId)}`)
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.success && Array.isArray(data.applications)) {
+              const targetUser = data.ldapId || active || 'my-apps';
+              setActiveUserSession(targetUser);
+              setCurrentUser(targetUser);
+              const existingApps = getUserApplications(targetUser);
+              const merged = mergeApplications(existingApps, data.applications);
+              saveUserApplications(targetUser, merged);
+              setApplications(merged);
+              window.history.replaceState({}, document.title, window.location.pathname);
+              alert(`🎉 Success! Automatically synced ${data.applications.length} applied companies from IIT Bombay Placement Portal.`);
+            }
+          })
+          .catch((err) => console.error('Failed to fetch sync data:', err));
       }
 
       if (syncPayload && active) {

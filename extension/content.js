@@ -338,18 +338,31 @@
 
       const allCompanies = Array.from(accumulatedCompanies.values());
 
+      let syncId = '';
       try {
-        await fetch(`${appUrl}/api/sync`, {
+        const res = await fetch(`${appUrl}/api/sync`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ldapId: targetLdap, applications: allCompanies }),
         });
+        const data = await res.json();
+        if (data.syncId) syncId = data.syncId;
       } catch (e) {
         console.warn('API sync warning:', e);
       }
 
-      const payloadStr = encodeURIComponent(JSON.stringify(allCompanies));
-      const redirectUrl = `${appUrl}?sync_ldap=${encodeURIComponent(targetLdap)}&sync_payload=${payloadStr}`;
+      // Open Vercel app with clean, short sync_id (prevents URI_TOO_LONG error)
+      let redirectUrl = `${appUrl}?sync_ldap=${encodeURIComponent(targetLdap)}`;
+      if (syncId) {
+        redirectUrl += `&sync_id=${encodeURIComponent(syncId)}`;
+      } else {
+        // Fallback: copy to clipboard
+        try {
+          await navigator.clipboard.writeText(JSON.stringify(allCompanies));
+          alert('Copied 34 companies to clipboard! Opening tracker...');
+        } catch {}
+      }
+
       window.open(redirectUrl, '_blank');
 
       btn.innerText = `✓ Synced ${allCompanies.length} Jobs!`;

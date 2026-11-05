@@ -73,20 +73,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     syncBtn.innerText = 'Syncing...';
     syncBtn.disabled = true;
 
-    // 1. Post to Webhook API
+    let syncId = '';
     try {
-      await fetch(`${appUrl}/api/sync`, {
+      const res = await fetch(`${appUrl}/api/sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ldapId, applications: currentCompanies }),
       });
+      const data = await res.json();
+      if (data.syncId) syncId = data.syncId;
     } catch (e) {
       console.warn('API sync warning:', e);
     }
 
-    // 2. Open or focus the Web App
-    const payloadStr = encodeURIComponent(JSON.stringify(currentCompanies));
-    const targetUrl = `${appUrl}?sync_ldap=${encodeURIComponent(ldapId)}&sync_payload=${payloadStr}`;
+    // Clean, short URL without 20KB query strings (prevents URI_TOO_LONG)
+    let targetUrl = `${appUrl}?sync_ldap=${encodeURIComponent(ldapId)}`;
+    if (syncId) {
+      targetUrl += `&sync_id=${encodeURIComponent(syncId)}`;
+    } else {
+      try {
+        await navigator.clipboard.writeText(JSON.stringify(currentCompanies));
+      } catch {}
+    }
+
     chrome.tabs.create({ url: targetUrl });
 
     syncBtn.innerText = '✓ Synced Successfully!';

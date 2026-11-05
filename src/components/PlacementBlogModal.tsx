@@ -30,28 +30,20 @@ interface PlacementBlogModalProps {
 }
 
 const SAMPLE_BLOG_NOTICES = `---
-Company: NK Securities Research Private Limited
-Profile: AI/ML Researcher
-Test Date: Today (5th November 2026)
+Company: Example Corp
+Profile: Software Development Engineer
+Test Date: 15th November 2026
 Test Time: 06:00 PM - 08:00 PM
-Venue: Online (HackerRank)
+Venue: Online Assessment
 Instructions: System requirements: Working webcam and microphone. Link will be sent 30 mins prior to the test.
 
 ---
-Company: Pace Stock Broking Services
-Profile: Jr. Quantitative Researcher
-Test Date: Today (5th November 2026)
-Test Time: 08:30 PM - 10:00 PM
-Venue: Online Test Portal
-Instructions: Quantitative aptitude, probability, and mental mathematics.
-
----
-Company: Flipkart
-Profile: Data Scientist-9
-Test Date: Tomorrow (6th November 2026)
+Company: Demo Technologies
+Profile: Data Analyst
+Test Date: 20th November 2026
 Test Time: 07:00 PM - 08:30 PM
-Venue: Online (Mettl)
-Instructions: Mathematics, Statistics, Machine Learning, and Coding test.
+Venue: Online Test Portal
+Instructions: Mathematics, Statistics, and Coding test.
 
 ---
 Company: IBM

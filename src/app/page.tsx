@@ -180,50 +180,31 @@ export default function Home() {
     if (active) {
       setCurrentUser(active);
       const userApps = getUserApplications(active);
-      // Purge any fake test dates (Honda) and ensure verified NK Securities test date is set
+      // Purge any fake / mock test dates that were artificially injected previously
       const cleaned = userApps.map((app) => {
-        if (/honda/i.test(app.companyName) && app.testDate && /today|5 nov|7:30/i.test(app.testDate)) {
+        if (
+          app.testDate &&
+          (/Today \(5 Nov 2026\)/i.test(app.testDate) ||
+            app.testDate.includes('06:00 PM') ||
+            app.testDate.includes('07:30 PM') ||
+            app.testDate.includes('08:30 PM'))
+        ) {
           return {
             ...app,
             testDate: undefined,
             testPlatform: undefined,
             comments: (app.comments || []).filter(
-              (c) => !c.text.includes('Honda') && !c.text.includes('07:30 PM')
+              (c) => !c.text.includes('Placement Blog Announcement')
             ),
           };
         }
         return app;
       });
 
-      const synced = cleaned.map((app) => {
-        if (
-          isCompanyMatch('NK Securities Research Private Limited', app.companyName) &&
-          isRoleMatch('AI/ML Researcher', app.profile, app.jafId)
-        ) {
-          if (!app.testDate || !app.testDate.includes('06:00 PM')) {
-            const dateStr = 'Today (5 Nov 2026) at 06:00 PM';
-            const platformStr = 'Online (HackerRank)';
-            const newComment = {
-              id: `blog-nk-${Date.now()}`,
-              text: `📢 Placement Blog Announcement: Test scheduled on ${dateStr} • Venue: ${platformStr}.`,
-              createdAt: new Date().toISOString(),
-            };
-            return {
-              ...app,
-              testDate: dateStr,
-              testPlatform: platformStr,
-              comments: [newComment, ...(app.comments || [])],
-              updatedAt: new Date().toISOString(),
-            };
-          }
-        }
-        return app;
-      });
-
-      if (JSON.stringify(synced) !== JSON.stringify(userApps)) {
-        saveUserApplications(active, synced);
+      if (JSON.stringify(cleaned) !== JSON.stringify(userApps)) {
+        saveUserApplications(active, cleaned);
       }
-      setApplications(synced);
+      setApplications(cleaned);
     }
     setIsLoaded(true);
 
@@ -251,48 +232,29 @@ export default function Home() {
     setCurrentUser(ldapId);
     const userApps = getUserApplications(ldapId);
     const cleaned = userApps.map((app) => {
-      if (/honda/i.test(app.companyName) && app.testDate && /today|5 nov|7:30/i.test(app.testDate)) {
+      if (
+        app.testDate &&
+        (/Today \(5 Nov 2026\)/i.test(app.testDate) ||
+          app.testDate.includes('06:00 PM') ||
+          app.testDate.includes('07:30 PM') ||
+          app.testDate.includes('08:30 PM'))
+      ) {
         return {
           ...app,
           testDate: undefined,
           testPlatform: undefined,
           comments: (app.comments || []).filter(
-            (c) => !c.text.includes('Honda') && !c.text.includes('07:30 PM')
+            (c) => !c.text.includes('Placement Blog Announcement')
           ),
         };
       }
       return app;
     });
 
-    const synced = cleaned.map((app) => {
-      if (
-        isCompanyMatch('NK Securities Research Private Limited', app.companyName) &&
-        isRoleMatch('AI/ML Researcher', app.profile, app.jafId)
-      ) {
-        if (!app.testDate || !app.testDate.includes('06:00 PM')) {
-          const dateStr = 'Today (5 Nov 2026) at 06:00 PM';
-          const platformStr = 'Online (HackerRank)';
-          const newComment = {
-            id: `blog-nk-${Date.now()}`,
-            text: `📢 Placement Blog Announcement: Test scheduled on ${dateStr} • Venue: ${platformStr}.`,
-            createdAt: new Date().toISOString(),
-          };
-          return {
-            ...app,
-            testDate: dateStr,
-            testPlatform: platformStr,
-            comments: [newComment, ...(app.comments || [])],
-            updatedAt: new Date().toISOString(),
-          };
-        }
-      }
-      return app;
-    });
-
-    if (JSON.stringify(synced) !== JSON.stringify(userApps)) {
-      saveUserApplications(ldapId, synced);
+    if (JSON.stringify(cleaned) !== JSON.stringify(userApps)) {
+      saveUserApplications(ldapId, cleaned);
     }
-    setApplications(synced);
+    setApplications(cleaned);
   };
 
   // Handle Logout

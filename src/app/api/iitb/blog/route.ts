@@ -207,25 +207,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Verified announcement from Placement Blog 2026-27 for NK Securities
-    const nkAlreadyPresent = discoveredTests.some(
-      (d) =>
-        isCompanyMatch(d.companyName, 'NK Securities Research Private Limited') &&
-        (!d.profile || isRoleMatch('AI/ML Researcher', d.profile))
-    );
-    if (!nkAlreadyPresent) {
-      discoveredTests.push({
-        source: 'placement_blog',
-        companyName: 'NK Securities Research Private Limited',
-        profile: 'AI/ML Researcher',
-        testDate: 'Today (5 Nov 2026)',
-        testTime: '06:00 PM',
-        venue: 'Online (HackerRank)',
-        instructions:
-          'Technical & Coding test. Link will be active 15 mins before start time.',
-      });
-    }
-
     return NextResponse.json(
       {
         success: true,

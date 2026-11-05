@@ -180,7 +180,24 @@ export default function Home() {
     if (active) {
       setCurrentUser(active);
       const userApps = getUserApplications(active);
-      setApplications(userApps);
+      // Purge any fake test dates that may have been saved previously
+      const cleaned = userApps.map((app) => {
+        if (/honda/i.test(app.companyName) && app.testDate && /today|5 nov|7:30/i.test(app.testDate)) {
+          return {
+            ...app,
+            testDate: undefined,
+            testPlatform: undefined,
+            comments: (app.comments || []).filter(
+              (c) => !c.text.includes('Honda') && !c.text.includes('07:30 PM')
+            ),
+          };
+        }
+        return app;
+      });
+      if (JSON.stringify(cleaned) !== JSON.stringify(userApps)) {
+        saveUserApplications(active, cleaned);
+      }
+      setApplications(cleaned);
     }
     setIsLoaded(true);
 
@@ -207,7 +224,23 @@ export default function Home() {
   const handleLoginSuccess = (ldapId: string) => {
     setCurrentUser(ldapId);
     const userApps = getUserApplications(ldapId);
-    setApplications(userApps);
+    const cleaned = userApps.map((app) => {
+      if (/honda/i.test(app.companyName) && app.testDate && /today|5 nov|7:30/i.test(app.testDate)) {
+        return {
+          ...app,
+          testDate: undefined,
+          testPlatform: undefined,
+          comments: (app.comments || []).filter(
+            (c) => !c.text.includes('Honda') && !c.text.includes('07:30 PM')
+          ),
+        };
+      }
+      return app;
+    });
+    if (JSON.stringify(cleaned) !== JSON.stringify(userApps)) {
+      saveUserApplications(ldapId, cleaned);
+    }
+    setApplications(cleaned);
   };
 
   // Handle Logout

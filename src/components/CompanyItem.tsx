@@ -249,6 +249,23 @@ export const CompanyItem: React.FC<CompanyItemProps> = ({
             >
               Save
             </button>
+            {application.testDate && (
+              <button
+                type="button"
+                onClick={() => {
+                  setTestDate('');
+                  setTestPlatform('');
+                  if (onUpdateTestDetails) {
+                    onUpdateTestDetails(application.id, '', '');
+                  }
+                  setIsEditingTest(false);
+                }}
+                className="px-2.5 py-1 text-xs text-rose-600 hover:bg-rose-50 rounded border border-rose-200 font-medium cursor-pointer"
+                title="Clear test date and venue"
+              >
+                Clear
+              </button>
+            )}
             <button
               onClick={() => setIsEditingTest(false)}
               className="px-2 py-1 text-slate-500 hover:text-slate-700"

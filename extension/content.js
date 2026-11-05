@@ -379,21 +379,136 @@
     if (countEl) countEl.innerText = accumulatedCompanies.size;
   }
 
+  function injectBlogFloatingWidget() {
+    if (document.getElementById('iitb-blog-floating-widget')) return;
+
+    const widget = document.createElement('div');
+    widget.id = 'iitb-blog-floating-widget';
+    widget.style.cssText = `
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 999999;
+      background: #ffffff;
+      border: 2px solid #f59e0b;
+      border-radius: 16px;
+      box-shadow: 0 12px 36px -4px rgba(0, 0, 0, 0.3);
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 13px;
+      color: #0f172a;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 320px;
+    `;
+
+    widget.innerHTML = `
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="font-size: 18px;">📢</span>
+          <strong style="color: #b45309; font-weight: 800;">Placement Blog 2026-27</strong>
+        </div>
+        <button id="iitb-blog-close" style="border: none; background: transparent; cursor: pointer; color: #94a3b8; font-size: 15px; padding: 2px;">✕</button>
+      </div>
+
+      <div style="font-size: 12px; color: #475569; line-height: 1.4;">
+        Scan all real test notices, dates & venues from this blog and sync directly to your tracker.
+      </div>
+
+      <input id="iitb-blog-url" type="text" placeholder="https://your-tracker.vercel.app" style="
+        width: 100%;
+        padding: 7px 10px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        font-size: 12px;
+        box-sizing: border-box;
+      " />
+
+      <button id="iitb-blog-sync-btn" style="
+        background: #f59e0b;
+        color: #ffffff;
+        border: none;
+        padding: 9px 14px;
+        border-radius: 8px;
+        font-weight: 700;
+        cursor: pointer;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+      ">
+        ⚡ Sync Blog Posts to Tracker
+      </button>
+    `;
+
+    document.body.appendChild(widget);
+
+    const urlInput = document.getElementById('iitb-blog-url');
+    chrome.storage.sync.get(['vercelAppUrl'], (res) => {
+      urlInput.value = res.vercelAppUrl || 'http://localhost:3000';
+    });
+
+    urlInput.onchange = () => {
+      if (urlInput.value.trim()) {
+        chrome.storage.sync.set({ vercelAppUrl: urlInput.value.trim() });
+      }
+    };
+
+    document.getElementById('iitb-blog-close').onclick = () => {
+      widget.remove();
+    };
+
+    document.getElementById('iitb-blog-sync-btn').onclick = async () => {
+      const appUrl = (urlInput.value.trim() || 'http://localhost:3000').replace(/\/+$/, '');
+      const btn = document.getElementById('iitb-blog-sync-btn');
+      btn.innerText = 'Scanning blog posts...';
+      btn.style.background = '#d97706';
+
+      const blogText = document.body.innerText || '';
+
+      try {
+        await fetch(`${appUrl}/api/iitb/blog`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ blogContent: blogText }),
+        });
+      } catch (e) {
+        console.warn('API blog sync error:', e);
+      }
+
+      window.open(appUrl, '_blank');
+      btn.innerText = '✓ Blog Posts Synced!';
+      btn.style.background = '#10b981';
+      setTimeout(() => {
+        btn.innerText = '⚡ Sync Blog Posts to Tracker';
+        btn.style.background = '#f59e0b';
+      }, 3000);
+    };
+  }
+
   // Periodic safe check (at most once every 1.5 seconds) - ZERO performance impact
   setInterval(() => {
     try {
-      if (document.querySelector('table.mat-table')) {
+      if (window.location.pathname.includes('/blog/placement') || window.location.href.includes('/blog/')) {
+        injectBlogFloatingWidget();
+      } else if (document.querySelector('table.mat-table')) {
         scrapeCurrentDOM();
         injectFloatingWidget();
       }
     } catch {}
   }, 1500);
 
-  // Initial trigger after short delay so Angular completely finishes its initial render
+  // Initial trigger after short delay
   setTimeout(() => {
     try {
-      scrapeCurrentDOM();
-      injectFloatingWidget();
+      if (window.location.pathname.includes('/blog/placement') || window.location.href.includes('/blog/')) {
+        injectBlogFloatingWidget();
+      } else {
+        scrapeCurrentDOM();
+        injectFloatingWidget();
+      }
     } catch {}
   }, 1000);
 })();

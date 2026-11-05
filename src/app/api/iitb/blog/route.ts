@@ -12,114 +12,6 @@ export async function OPTIONS() {
   });
 }
 
-// Scheduled placement test notices from IIT Bombay Placement Season
-const TODAY_TEST_NOTICES = [
-  {
-    companyName: 'NK Securities Research Private Limited',
-    profile: 'AI/ML Researcher',
-    testDate: 'Today (5 Nov 2026)',
-    testTime: '06:00 PM',
-    venue: 'Online (HackerRank)',
-    instructions: 'Technical & Coding test. Link will be active 15 mins before start time.',
-  },
-  {
-    companyName: 'Honda R&D',
-    profile: 'AI & Advanced Mobility Researcher',
-    testDate: 'Today (5 Nov 2026)',
-    testTime: '07:30 PM',
-    venue: 'Online Assessment',
-    instructions: 'Aptitude & Technical test on algorithms and machine learning.',
-  },
-  {
-    companyName: 'Pace Stock Broking Services',
-    profile: 'Jr. Quantitative Researcher',
-    testDate: 'Today (5 Nov 2026)',
-    testTime: '08:30 PM',
-    venue: 'Online (Test Portal)',
-    instructions: 'Quantitative aptitude, probability, and mental mathematics.',
-  },
-  {
-    companyName: 'commotion',
-    profile: 'Machine Learning Engineer',
-    testDate: 'Today (5 Nov 2026)',
-    testTime: '09:00 PM',
-    venue: 'Online (CodeSignal)',
-    instructions: 'Machine learning algorithms, Python, and system coding.',
-  },
-  {
-    companyName: 'commotion',
-    profile: 'Data Scientist (Speech Research)',
-    testDate: '9 Nov 2026',
-    testTime: '06:00 PM',
-    venue: 'Online Assessment',
-    instructions: 'Speech processing, audio feature modeling, and mathematical statistics.',
-  },
-  {
-    companyName: 'Flipkart',
-    profile: 'Data Scientist-9',
-    testDate: 'Tomorrow (6 Nov 2026)',
-    testTime: '07:00 PM',
-    venue: 'Online (Mettl)',
-    instructions: 'Depth in mathematics, models, and data science coding.',
-  },
-  {
-    companyName: 'IBM',
-    profile: 'Software Engineer',
-    testDate: '7 Nov 2026',
-    testTime: '05:00 PM',
-    venue: 'LH 101 / Online',
-    instructions: 'Cognitive assessment and software engineering coding challenge.',
-  },
-  {
-    companyName: 'ACCENTURE SOLUTIONS PRIVATE LIMITED',
-    profile: 'I&E - AI and Data FTE PG',
-    testDate: '8 Nov 2026',
-    testTime: '06:30 PM',
-    venue: 'Online Assessment',
-    instructions: 'Mock assessment and final cognitive test.',
-  },
-  {
-    companyName: 'Sony Research India',
-    profile: 'AI Research Scientist',
-    testDate: '10 Nov 2026',
-    testTime: '06:00 PM',
-    venue: 'Online (HackerRank)',
-    instructions: 'Deep learning, computer vision, and neural architecture.',
-  },
-  {
-    companyName: 'Sony India Software Centre',
-    profile: 'Software Engineer',
-    testDate: '11 Nov 2026',
-    testTime: '07:00 PM',
-    venue: 'Online Assessment',
-    instructions: 'Data structures, algorithms, and system design.',
-  },
-  {
-    companyName: 'Stenoa Capital',
-    profile: 'Quant Researcher',
-    testDate: '12 Nov 2026',
-    testTime: '08:00 PM',
-    venue: 'Online (HackerRank)',
-    instructions: 'Advanced probability, stochastic calculus, and algorithmic reasoning.',
-  },
-  {
-    companyName: 'McKinsey CCN',
-    profile: 'Data Scientist I',
-    testDate: '13 Nov 2026',
-    testTime: '06:00 PM',
-    venue: 'Online (Mettl)',
-    instructions: 'Applied statistics, machine learning case studies, and business analytics.',
-  },
-  {
-    companyName: 'Orbit Markets',
-    profile: 'Quant Developer',
-    testDate: '14 Nov 2026',
-    testTime: '07:30 PM',
-    venue: 'Online Assessment',
-    instructions: 'C++ / Python systems, financial engineering, and low latency.',
-  },
-];
-
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -127,9 +19,9 @@ export async function POST(req: NextRequest) {
 
     const discoveredTests: any[] = [];
 
-    // 0. If direct blog content is passed from browser
+    // 0. If direct blog content is passed from browser / extension
     if (blogContent && typeof blogContent === 'string' && blogContent.trim()) {
-      console.log('[IITB Blog API] Parsing provided blog content directly');
+      console.log('[IITB Blog API] Parsing provided real blog content directly');
       const parsed = parsePlacementBlog(blogContent);
       discoveredTests.push(...parsed);
     }
@@ -159,13 +51,33 @@ export async function POST(req: NextRequest) {
           'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       };
 
-      // 1. Query job applications for applicant credentials and scheduled tests
+      // 1. Fetch live placement blog posts directly
+      try {
+        const blogUrl = 'https://campus.placements.iitb.ac.in/blog/placement/';
+        const blogRes = await fetch(blogUrl, {
+          method: 'GET',
+          headers: {
+            ...headers,
+            Cookie: `token=${cleanToken}; session=${cleanToken}`,
+          },
+        });
+        if (blogRes.ok) {
+          const blogText = await blogRes.text();
+          if (blogText && !blogText.includes('sso.iitb.ac.in')) {
+            const blogTests = parsePlacementBlog(blogText);
+            discoveredTests.push(...blogTests);
+          }
+        }
+      } catch (err) {
+        console.warn('[IITB Blog API] Error fetching placement blog URL:', err);
+      }
+
+      // 2. Query job applications for applicant credentials and scheduled tests
       if (applicantId) {
         try {
           const jobAppUrl = `https://campus.placements.iitb.ac.in/api/v1/job/application?applicantId=${encodeURIComponent(
             applicantId.toString()
           )}`;
-          console.log('[IITB Blog API] Querying job applications for test schedules:', jobAppUrl);
 
           const jobRes = await fetch(jobAppUrl, { method: 'GET', headers });
           if (jobRes.ok) {
@@ -229,7 +141,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // 2. Query portal activity endpoint
+      // 3. Query portal activity endpoint
       try {
         const activityUrl = applicantId
           ? `https://campus.placements.iitb.ac.in/api/v1/activity/testppt?applicantId=${encodeURIComponent(
@@ -259,20 +171,6 @@ export async function POST(req: NextRequest) {
         }
       } catch (err) {
         console.warn('[IITB Blog API] Error fetching activity/testppt:', err);
-      }
-    }
-
-    // 3. Merge scheduled placement test notices
-    for (const notice of TODAY_TEST_NOTICES) {
-      const alreadyPresent = discoveredTests.some((d) =>
-        isCompanyMatch(d.companyName, notice.companyName) &&
-        (!notice.profile || !d.profile || isRoleMatch(notice.profile, d.profile))
-      );
-      if (!alreadyPresent) {
-        discoveredTests.push({
-          source: 'placement_blog_schedule',
-          ...notice,
-        });
       }
     }
 

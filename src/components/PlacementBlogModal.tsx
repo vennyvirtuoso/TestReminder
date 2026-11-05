@@ -38,14 +38,6 @@ Venue: Online (HackerRank)
 Instructions: System requirements: Working webcam and microphone. Link will be sent 30 mins prior to the test.
 
 ---
-Company: Honda R&D
-Profile: AI & Advanced Mobility Researcher
-Test Date: Today (5th November 2026)
-Test Time: 07:30 PM - 09:00 PM
-Venue: Online (Aptitude & Technical Assessment)
-Instructions: 90 mins test consisting of core algorithms, ML theory, and problem solving.
-
----
 Company: Pace Stock Broking Services
 Profile: Jr. Quantitative Researcher
 Test Date: Today (5th November 2026)

@@ -14,6 +14,23 @@ const USERS_INDEX_KEY = 'iitb_registered_users_v1';
 // Helper to get storage key for a specific user's applications
 const getUserAppsKey = (ldapId: string) => `iitb_apps_user_${ldapId.toLowerCase().trim()}`;
 const getUserMetaKey = (ldapId: string) => `iitb_meta_user_${ldapId.toLowerCase().trim()}`;
+const getUserTokenKey = (ldapId: string) => `iitb_token_${ldapId.toLowerCase().trim()}`;
+
+// Saved IITB Placement Portal Session Token (Local only)
+export const getIITBToken = (ldapId: string): string | null => {
+  if (typeof window === 'undefined' || !ldapId) return null;
+  return localStorage.getItem(getUserTokenKey(ldapId));
+};
+
+export const saveIITBToken = (ldapId: string, token: string): void => {
+  if (typeof window === 'undefined' || !ldapId) return;
+  localStorage.setItem(getUserTokenKey(ldapId), token.trim());
+};
+
+export const clearIITBToken = (ldapId: string): void => {
+  if (typeof window === 'undefined' || !ldapId) return;
+  localStorage.removeItem(getUserTokenKey(ldapId));
+};
 
 // Active Session Management
 export const getActiveUserSession = (): string | null => {

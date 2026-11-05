@@ -646,6 +646,7 @@ export default function Home() {
         onClose={() => setIsImportModalOpen(false)}
         onImportApplications={handleImportApplications}
         onLoadSample={handleLoadSample}
+        ldapId={currentUser || undefined}
       />
 
       <AddCompanyModal

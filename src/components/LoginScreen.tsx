@@ -156,21 +156,24 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                Passcode / Password *
+                Personal Passcode / PIN *
               </label>
-              <span className="text-[11px] text-slate-400">Protects your notes</span>
+              <span className="text-[11px] text-emerald-600 font-medium">Safe & Private</span>
             </div>
             <div className="relative">
               <input
                 type="password"
                 required
-                placeholder="Enter personal passcode"
+                placeholder="Create any simple passcode (e.g. 1234)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full pl-9 pr-3.5 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 placeholder-slate-400"
               />
               <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
             </div>
+            <p className="text-[10px] text-slate-400 mt-1">
+              * Any passcode of your choice to protect your private notes. Never enter your actual IITB SSO password.
+            </p>
           </div>
 
           {/* Error Banner */}

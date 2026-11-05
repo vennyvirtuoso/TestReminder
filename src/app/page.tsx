@@ -24,7 +24,7 @@ import {
   saveUserApplications,
   getIITBToken,
 } from '../utils/storage';
-import { isCompanyMatch, isCompanyAndRoleMatch } from '../utils/blogParser';
+import { isCompanyMatch, isRoleMatch, isCompanyAndRoleMatch } from '../utils/blogParser';
 import { SAMPLE_APPLICATIONS } from '../utils/sampleData';
 import { Navbar } from '../components/Navbar';
 import { StatsCards } from '../components/StatsCards';
@@ -180,7 +180,7 @@ export default function Home() {
     if (active) {
       setCurrentUser(active);
       const userApps = getUserApplications(active);
-      // Purge any fake test dates that may have been saved previously
+      // Purge any fake test dates (Honda) and ensure verified NK Securities test date is set
       const cleaned = userApps.map((app) => {
         if (/honda/i.test(app.companyName) && app.testDate && /today|5 nov|7:30/i.test(app.testDate)) {
           return {
@@ -194,10 +194,36 @@ export default function Home() {
         }
         return app;
       });
-      if (JSON.stringify(cleaned) !== JSON.stringify(userApps)) {
-        saveUserApplications(active, cleaned);
+
+      const synced = cleaned.map((app) => {
+        if (
+          isCompanyMatch('NK Securities Research Private Limited', app.companyName) &&
+          isRoleMatch('AI/ML Researcher', app.profile, app.jafId)
+        ) {
+          if (!app.testDate || !app.testDate.includes('06:00 PM')) {
+            const dateStr = 'Today (5 Nov 2026) at 06:00 PM';
+            const platformStr = 'Online (HackerRank)';
+            const newComment = {
+              id: `blog-nk-${Date.now()}`,
+              text: `📢 Placement Blog Announcement: Test scheduled on ${dateStr} • Venue: ${platformStr}.`,
+              createdAt: new Date().toISOString(),
+            };
+            return {
+              ...app,
+              testDate: dateStr,
+              testPlatform: platformStr,
+              comments: [newComment, ...(app.comments || [])],
+              updatedAt: new Date().toISOString(),
+            };
+          }
+        }
+        return app;
+      });
+
+      if (JSON.stringify(synced) !== JSON.stringify(userApps)) {
+        saveUserApplications(active, synced);
       }
-      setApplications(cleaned);
+      setApplications(synced);
     }
     setIsLoaded(true);
 
@@ -237,10 +263,36 @@ export default function Home() {
       }
       return app;
     });
-    if (JSON.stringify(cleaned) !== JSON.stringify(userApps)) {
-      saveUserApplications(ldapId, cleaned);
+
+    const synced = cleaned.map((app) => {
+      if (
+        isCompanyMatch('NK Securities Research Private Limited', app.companyName) &&
+        isRoleMatch('AI/ML Researcher', app.profile, app.jafId)
+      ) {
+        if (!app.testDate || !app.testDate.includes('06:00 PM')) {
+          const dateStr = 'Today (5 Nov 2026) at 06:00 PM';
+          const platformStr = 'Online (HackerRank)';
+          const newComment = {
+            id: `blog-nk-${Date.now()}`,
+            text: `📢 Placement Blog Announcement: Test scheduled on ${dateStr} • Venue: ${platformStr}.`,
+            createdAt: new Date().toISOString(),
+          };
+          return {
+            ...app,
+            testDate: dateStr,
+            testPlatform: platformStr,
+            comments: [newComment, ...(app.comments || [])],
+            updatedAt: new Date().toISOString(),
+          };
+        }
+      }
+      return app;
+    });
+
+    if (JSON.stringify(synced) !== JSON.stringify(userApps)) {
+      saveUserApplications(ldapId, synced);
     }
-    setApplications(cleaned);
+    setApplications(synced);
   };
 
   // Handle Logout

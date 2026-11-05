@@ -34,3 +34,4 @@ export interface CompanyApplication {
 
 export type FilterTestStatus = 'all' | 'given' | 'not_given';
 export type FilterAppStatus = 'all' | ApplicationStatus | string;
+

@@ -216,3 +216,4 @@ export const AddCompanyModal: React.FC<AddCompanyModalProps> = ({ isOpen, onClos
     </div>
   );
 };
+

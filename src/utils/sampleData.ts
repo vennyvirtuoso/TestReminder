@@ -133,3 +133,4 @@ export const SAMPLE_APPLICATIONS: CompanyApplication[] = [
     updatedAt: '2024-10-30T09:10:00Z',
   },
 ];
+

@@ -97,3 +97,4 @@ export const getConsoleSnippet = (): string => {
   alert('Copied ' + items.length + ' applications to clipboard! Paste in your Tracker app.');
 })();`;
 };
+

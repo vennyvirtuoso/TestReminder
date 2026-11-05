@@ -1,13 +1,13 @@
 'use client';
 
 import React from 'react';
-import { ExternalLink, ShieldCheck, Download, Plus, Upload, User, Trash2 } from 'lucide-react';
+import { ExternalLink, ShieldCheck, Download, Plus, Upload, User, LogOut, Trash2 } from 'lucide-react';
 import { CompanyApplication } from '../types';
 import { exportToCSV, exportToJSON } from '../utils/storage';
 
 interface NavbarProps {
   ldapId: string;
-  onOpenLdapModal: () => void;
+  onLogout: () => void;
   onOpenImportModal: () => void;
   onOpenAddModal: () => void;
   onClearAll: () => void;
@@ -17,7 +17,7 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({
   ldapId,
-  onOpenLdapModal,
+  onLogout,
   onOpenImportModal,
   onOpenAddModal,
   onClearAll,
@@ -35,10 +35,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="font-bold text-slate-900 text-lg sm:text-xl tracking-tight">
+                <h1 className="font-bold text-slate-900 text-base sm:text-xl tracking-tight">
                   Placement Tracker
                 </h1>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 hidden sm:inline-block">
                   IIT Bombay
                 </span>
               </div>
@@ -57,26 +57,27 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Action buttons */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* LDAP Profile Badge */}
-            <button
-              onClick={onOpenLdapModal}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition"
-              title="Manage your IITB LDAP ID (100% private to your browser)"
-            >
+            {/* Active Student Badge with Switch Account / Logout */}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 text-xs">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <User className="w-3.5 h-3.5 text-blue-600" />
-              <span className="hidden sm:inline">LDAP:</span>
-              <span className="font-semibold text-slate-900 max-w-[100px] truncate">
-                {ldapId ? ldapId : 'Set ID'}
+              <span className="font-bold font-mono text-slate-900 max-w-[120px] truncate">
+                {ldapId}
               </span>
-              <span title="Private local storage">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              </span>
-            </button>
+              <button
+                onClick={onLogout}
+                className="ml-1 text-slate-400 hover:text-rose-600 p-0.5 rounded transition"
+                title="Sign out / Switch LDAP User"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
 
             {/* Import Button */}
             <button
               onClick={onOpenImportModal}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 transition"
+              title="Import applied companies from IITB portal"
             >
               <Upload className="w-4 h-4" />
               <span className="hidden sm:inline">Sync / Import</span>
@@ -91,18 +92,18 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="hidden sm:inline">Add Company</span>
             </button>
 
-            {/* Export Dropdown */}
+            {/* Export & Actions Dropdown */}
             <div className="relative group">
               <button
                 className="flex items-center gap-1 px-2.5 py-1.5 text-xs sm:text-sm font-medium rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 transition"
-                title="Export or download your data"
+                title="Options & Export"
               >
                 <Download className="w-4 h-4 text-slate-500" />
                 <span className="hidden md:inline">Export</span>
               </button>
-              <div className="absolute right-0 mt-1 w-44 bg-white border border-slate-200 rounded-lg shadow-lg py-1.5 hidden group-hover:block z-50">
+              <div className="absolute right-0 mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg py-1.5 hidden group-hover:block z-50">
                 <button
-                  onClick={() => exportToCSV(applications)}
+                  onClick={() => exportToCSV(applications, ldapId)}
                   className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center justify-between"
                   disabled={applications.length === 0}
                 >
@@ -110,7 +111,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <span className="text-[10px] text-slate-400">Excel</span>
                 </button>
                 <button
-                  onClick={() => exportToJSON(applications)}
+                  onClick={() => exportToJSON(applications, ldapId)}
                   className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center justify-between"
                   disabled={applications.length === 0}
                 >
@@ -126,10 +127,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
                 <button
                   onClick={onClearAll}
-                  className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 flex items-center gap-1.5"
+                  className="w-full text-left px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 flex items-center gap-1.5"
                 >
                   <Trash2 className="w-3 h-3" />
-                  Clear All Data
+                  Clear My Data
+                </button>
+                <div className="my-1 border-t border-slate-100" />
+                <button
+                  onClick={onLogout}
+                  className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-100 flex items-center gap-1.5 font-medium"
+                >
+                  <LogOut className="w-3 h-3 text-slate-500" />
+                  Switch / Logout
                 </button>
               </div>
             </div>

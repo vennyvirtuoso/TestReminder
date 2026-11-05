@@ -167,3 +167,4 @@ function normalizeStatus(status: string): string {
   if (s.includes('closed')) return 'Closed';
   return 'Applied';
 }
+

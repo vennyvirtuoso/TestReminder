@@ -320,3 +320,4 @@ export const CompanyItem: React.FC<CompanyItemProps> = ({
     </div>
   );
 };
+

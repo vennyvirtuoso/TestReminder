@@ -238,3 +238,4 @@ export const CompanyTableView: React.FC<CompanyTableViewProps> = ({
     </div>
   );
 };
+

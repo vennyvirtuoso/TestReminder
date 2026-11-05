@@ -96,3 +96,4 @@ vercel --prod
 1. **No External Network Calls**: The app does not transmit your LDAP ID, passwords, or company applications to any backend service.
 2. **Local Storage**: All data lives in your browser's `localStorage` under `iitb_placement_applications_v1` and `iitb_ldap_user_v1`.
 3. **Multi-User Isolation**: Even when hosted on a public Vercel URL, each student who visits the link has their own isolated local browser storage.
+

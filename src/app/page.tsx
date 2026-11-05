@@ -13,15 +13,14 @@ import {
   CheckCircle2,
   Clock,
   Building,
-  Info,
+  LogOut,
 } from 'lucide-react';
 import { CompanyApplication, ApplicationStatus, FilterTestStatus } from '../types';
 import {
-  getStoredApplications,
-  saveStoredApplications,
-  getStoredLdap,
-  saveStoredLdap,
-  clearAllData,
+  getActiveUserSession,
+  clearActiveUserSession,
+  getUserApplications,
+  saveUserApplications,
 } from '../utils/storage';
 import { SAMPLE_APPLICATIONS } from '../utils/sampleData';
 import { Navbar } from '../components/Navbar';
@@ -30,11 +29,11 @@ import { CompanyItem } from '../components/CompanyItem';
 import { CompanyTableView } from '../components/CompanyTableView';
 import { ImportModal } from '../components/ImportModal';
 import { AddCompanyModal } from '../components/AddCompanyModal';
-import { LdapModal } from '../components/LdapModal';
+import { LoginScreen } from '../components/LoginScreen';
 
 export default function Home() {
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [applications, setApplications] = useState<CompanyApplication[]>([]);
-  const [ldapId, setLdapId] = useState('');
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Filters and search
@@ -47,31 +46,38 @@ export default function Home() {
   // Modals
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isLdapModalOpen, setIsLdapModalOpen] = useState(false);
 
-  // Load from localStorage on mount
+  // Initialize session on mount
   useEffect(() => {
-    const storedApps = getStoredApplications();
-    const storedLdap = getStoredLdap();
-
-    if (storedApps.length > 0) {
-      setApplications(storedApps);
-    } else {
-      // Load sample applications on first ever visit so user has immediate visual feedback
-      setApplications(SAMPLE_APPLICATIONS);
-      saveStoredApplications(SAMPLE_APPLICATIONS);
-    }
-
-    if (storedLdap) {
-      setLdapId(storedLdap);
+    const active = getActiveUserSession();
+    if (active) {
+      setCurrentUser(active);
+      const userApps = getUserApplications(active);
+      setApplications(userApps);
     }
     setIsLoaded(true);
   }, []);
 
-  // Save to localStorage whenever applications change
+  // Handle Login Success
+  const handleLoginSuccess = (ldapId: string) => {
+    setCurrentUser(ldapId);
+    const userApps = getUserApplications(ldapId);
+    setApplications(userApps);
+  };
+
+  // Handle Logout
+  const handleLogout = () => {
+    clearActiveUserSession();
+    setCurrentUser(null);
+    setApplications([]);
+  };
+
+  // Save to active user's storage whenever applications change
   const updateApplications = (newApps: CompanyApplication[]) => {
     setApplications(newApps);
-    saveStoredApplications(newApps);
+    if (currentUser) {
+      saveUserApplications(currentUser, newApps);
+    }
   };
 
   // Toggle Test Given Checkbox
@@ -208,24 +214,16 @@ export default function Home() {
     updateApplications(merged);
   };
 
-  // Load Sample Data
+  // Load Sample Data for this student
   const handleLoadSample = () => {
     updateApplications(SAMPLE_APPLICATIONS);
   };
 
-  // Clear All
+  // Clear Active User Data
   const handleClearAll = () => {
-    if (confirm('Clear all stored placement applications and notes?')) {
-      clearAllData();
-      setApplications([]);
-      setLdapId('');
+    if (confirm(`Clear all stored applications and comments for LDAP user ${currentUser}?`)) {
+      updateApplications([]);
     }
-  };
-
-  // Save LDAP
-  const handleSaveLdap = (id: string) => {
-    setLdapId(id);
-    saveStoredLdap(id);
   };
 
   // Filter & Sort
@@ -272,15 +270,20 @@ export default function Home() {
   }, [applications, searchQuery, testFilter, statusFilter, sortBy]);
 
   if (!isLoaded) {
-    return null; // or loading spinner
+    return null;
+  }
+
+  // If not logged in, render the dedicated Student Login Screen
+  if (!currentUser) {
+    return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
   }
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Navigation Bar */}
       <Navbar
-        ldapId={ldapId}
-        onOpenLdapModal={() => setIsLdapModalOpen(true)}
+        ldapId={currentUser}
+        onLogout={handleLogout}
         onOpenImportModal={() => setIsImportModalOpen(true)}
         onOpenAddModal={() => setIsAddModalOpen(true)}
         onClearAll={handleClearAll}
@@ -289,17 +292,17 @@ export default function Home() {
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Banner with Official Portal reminder */}
+        {/* Banner with Student & Portal Reminder */}
         <div className="mb-4 p-4 rounded-xl bg-gradient-to-r from-blue-900 to-indigo-900 text-white shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-bold text-sm sm:text-base">IIT Bombay Placement Application Monitor</span>
-              <span className="text-[11px] font-semibold bg-blue-500/30 border border-blue-400/40 text-blue-200 px-2 py-0.5 rounded-full">
-                Phase 1 & 2
+              <span className="font-bold text-sm sm:text-base">IIT Bombay Placement Monitor</span>
+              <span className="text-[11px] font-semibold bg-emerald-500/30 border border-emerald-400/40 text-emerald-200 px-2 py-0.5 rounded-full font-mono">
+                Active: {currentUser}
               </span>
             </div>
             <p className="text-xs text-blue-100 mt-1 max-w-2xl leading-relaxed">
-              Track companies applied at <code className="bg-black/20 px-1 py-0.5 rounded text-sky-200">campus.placements.iitb.ac.in/applicant/application</code>. Mark tests as Given or Not Given, take notes, and keep private records on your browser.
+              Managing applied companies from <code className="bg-black/20 px-1 py-0.5 rounded text-sky-200">campus.placements.iitb.ac.in/applicant/application</code>. Your data is isolated to your LDAP ID.
             </p>
           </div>
 
@@ -472,10 +475,10 @@ export default function Home() {
             <div className="w-14 h-14 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-4">
               <Building className="w-7 h-7" />
             </div>
-            <h3 className="font-bold text-slate-900 text-lg">No companies found</h3>
+            <h3 className="font-bold text-slate-900 text-lg">No companies in your workspace</h3>
             <p className="text-xs text-slate-500 mt-1 leading-relaxed">
               {applications.length === 0
-                ? 'You have not added any companies yet. Sync directly from the IITB Placement portal or load sample data.'
+                ? `Welcome ${currentUser}! Sync directly from the IITB Placement portal or load sample data to get started.`
                 : 'No companies match your current search and filters. Try clearing your filters.'}
             </p>
 
@@ -519,7 +522,7 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <span className="font-semibold text-slate-800">IIT Bombay Placement Companion</span>
             <span>•</span>
-            <span className="text-slate-400">100% Client-Side Privacy</span>
+            <span className="text-slate-400">Signed in as {currentUser}</span>
           </div>
           <div className="flex items-center gap-4 text-slate-500">
             <a
@@ -532,10 +535,10 @@ export default function Home() {
             </a>
             <span>•</span>
             <button
-              onClick={() => setIsImportModalOpen(true)}
-              className="hover:text-blue-600 transition"
+              onClick={handleLogout}
+              className="text-slate-600 hover:text-rose-600 transition font-medium"
             >
-              Sync Tool
+              Switch Account
             </button>
           </div>
         </div>
@@ -568,13 +571,6 @@ export default function Home() {
           };
           updateApplications([comp, ...applications]);
         }}
-      />
-
-      <LdapModal
-        isOpen={isLdapModalOpen}
-        onClose={() => setIsLdapModalOpen(false)}
-        currentLdapId={ldapId}
-        onSaveLdapId={handleSaveLdap}
       />
     </div>
   );

@@ -66,14 +66,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         createdAt: new Date().toISOString(),
         lastLogin: new Date().toISOString(),
       });
-    }
 
-    // Auto-migrate: If user has no applications yet, claim any unassigned 'my-apps' or sync data
-    const currentApps = getUserApplications(cleanId);
-    if (currentApps.length === 0) {
-      const unassigned = getUserApplications('my-apps');
-      if (unassigned.length > 0) {
-        saveUserApplications(cleanId, unassigned);
+      // If user has no applications yet, prompt or give fresh state
+      const currentApps = getUserApplications(cleanId);
+      if (currentApps.length === 0) {
+        // Leave empty for clean import, or user can load sample
       }
     }
 

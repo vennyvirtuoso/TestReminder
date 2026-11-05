@@ -11,6 +11,8 @@ import {
   ChevronRight,
   Sparkles,
   AlertTriangle,
+  RefreshCw,
+  Radio,
 } from 'lucide-react';
 import { CompanyApplication } from '../types';
 
@@ -18,12 +20,18 @@ interface UpcomingTestsBannerProps {
   applications: CompanyApplication[];
   onOpenBlogModal: () => void;
   onToggleTestGiven: (id: string) => void;
+  isScanning?: boolean;
+  onTriggerAutoScan?: () => void;
+  lastScannedTime?: string | null;
 }
 
 export const UpcomingTestsBanner: React.FC<UpcomingTestsBannerProps> = ({
   applications,
   onOpenBlogModal,
   onToggleTestGiven,
+  isScanning = false,
+  onTriggerAutoScan,
+  lastScannedTime,
 }) => {
   // Find all applications that have a testDate and where test is pending (not yet given)
   const upcomingTests = applications.filter(
@@ -35,13 +43,13 @@ export const UpcomingTestsBanner: React.FC<UpcomingTestsBannerProps> = ({
       {upcomingTests.length > 0 ? (
         <div className="rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 shadow-sm overflow-hidden animate-in fade-in duration-300">
           {/* Header */}
-          <div className="px-5 py-3.5 bg-amber-500/10 border-b border-amber-200/80 flex items-center justify-between">
+          <div className="px-5 py-3.5 bg-amber-500/10 border-b border-amber-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <span className="flex h-3 w-3 relative">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500" />
               </span>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-bold text-slate-900 text-sm sm:text-base flex items-center gap-1.5">
                   <Bell className="w-4 h-4 text-amber-700" />
                   Upcoming Tests Alert
@@ -49,16 +57,35 @@ export const UpcomingTestsBanner: React.FC<UpcomingTestsBannerProps> = ({
                 <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-extrabold text-xs border border-rose-200">
                   {upcomingTests.length} Pending
                 </span>
+                <span className="text-[11px] text-emerald-800 bg-emerald-100/80 border border-emerald-300 px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                  Auto-scanning Blog (every 20m)
+                </span>
               </div>
             </div>
 
-            <button
-              onClick={onOpenBlogModal}
-              className="text-xs font-semibold text-amber-900 hover:text-amber-950 bg-amber-200/70 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition flex items-center gap-1 cursor-pointer"
-            >
-              <span>Scan Blog for New Tests</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
+            <div className="flex items-center gap-2">
+              {onTriggerAutoScan && (
+                <button
+                  type="button"
+                  onClick={onTriggerAutoScan}
+                  disabled={isScanning}
+                  className="text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 px-2.5 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer disabled:opacity-60 shadow-2xs"
+                  title="Scan Placement Blog & Activities right now"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 text-amber-600 ${isScanning ? 'animate-spin' : ''}`} />
+                  <span>{isScanning ? 'Scanning...' : 'Scan Now'}</span>
+                </button>
+              )}
+
+              <button
+                onClick={onOpenBlogModal}
+                className="text-xs font-semibold text-amber-900 hover:text-amber-950 bg-amber-200/70 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition flex items-center gap-1 cursor-pointer"
+              >
+                <span>Blog Scanner</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
 
           {/* Test Cards List */}
@@ -118,26 +145,44 @@ export const UpcomingTestsBanner: React.FC<UpcomingTestsBannerProps> = ({
           </div>
         </div>
       ) : (
-        /* Empty / Compact Notice */
+        /* Empty / Compact Notice with 20-min auto scanner */
         <div className="p-3.5 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
           <div className="flex items-center gap-2 text-slate-700">
             <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
               <Calendar className="w-4 h-4" />
             </div>
             <div>
-              <span className="font-bold text-slate-900 mr-1.5">Placement Blog Test Radar:</span>
+              <span className="font-bold text-slate-900 mr-1.5">Placement Blog Radar:</span>
               <span className="text-slate-600">
-                Keep your test dates and venues synchronized with official blog posts.
+                Auto-scanning <code className="text-blue-700 bg-blue-100/50 px-1 py-0.5 rounded">campus.placements.iitb.ac.in/blog/placement/</code> every 20 minutes for new test announcements.
               </span>
+              {lastScannedTime && (
+                <span className="ml-2 text-slate-400 text-[11px]">
+                  (Last checked: {lastScannedTime})
+                </span>
+              )}
             </div>
           </div>
-          <button
-            onClick={onOpenBlogModal}
-            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs transition shadow-2xs flex items-center gap-1 shrink-0 cursor-pointer"
-          >
-            <span>Scan Placement Blog</span>
-            <ExternalLink className="w-3 h-3" />
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {onTriggerAutoScan && (
+              <button
+                type="button"
+                onClick={onTriggerAutoScan}
+                disabled={isScanning}
+                className="px-2.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-semibold rounded-lg text-xs transition shadow-2xs flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-blue-600 ${isScanning ? 'animate-spin' : ''}`} />
+                <span>{isScanning ? 'Scanning...' : 'Scan Now'}</span>
+              </button>
+            )}
+            <button
+              onClick={onOpenBlogModal}
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs transition shadow-2xs flex items-center gap-1 cursor-pointer"
+            >
+              <span>Blog Details</span>
+              <ExternalLink className="w-3 h-3" />
+            </button>
+          </div>
         </div>
       )}
     </div>

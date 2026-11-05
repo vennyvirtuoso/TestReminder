@@ -22,7 +22,9 @@ import {
   clearActiveUserSession,
   getUserApplications,
   saveUserApplications,
+  getIITBToken,
 } from '../utils/storage';
+import { isCompanyMatch } from '../utils/blogParser';
 import { SAMPLE_APPLICATIONS } from '../utils/sampleData';
 import { Navbar } from '../components/Navbar';
 import { StatsCards } from '../components/StatsCards';
@@ -114,6 +116,8 @@ export default function Home() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isBlogModalOpen, setIsBlogModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isBlogScanning, setIsBlogScanning] = useState(false);
+  const [lastBlogScanTime, setLastBlogScanTime] = useState<string | null>(null);
 
   // Initialize session and check for incoming sync data
   useEffect(() => {
@@ -223,6 +227,98 @@ export default function Home() {
       saveUserApplications(currentUser, newApps);
     }
   };
+
+  // Automated Placement Blog Scanner (scans every 20 minutes)
+  const scanPlacementBlog = async (silent: boolean = false) => {
+    if (!currentUser) return;
+    const token = getIITBToken(currentUser);
+    if (!token) {
+      if (!silent) {
+        setIsImportModalOpen(true);
+      }
+      return;
+    }
+
+    setIsBlogScanning(true);
+    try {
+      const res = await fetch('/api/iitb/blog', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, ldapId: currentUser }),
+      });
+
+      const data = await res.json();
+      if (data.success && Array.isArray(data.tests) && data.tests.length > 0) {
+        let updatedCount = 0;
+        const currentApps = getUserApplications(currentUser);
+        const updatedApps = currentApps.map((app) => {
+          const matchedTest = data.tests.find((t: any) =>
+            isCompanyMatch(t.companyName, app.companyName)
+          );
+          if (matchedTest) {
+            const formattedDate = matchedTest.testTime
+              ? `${matchedTest.testDate} at ${matchedTest.testTime}`
+              : matchedTest.testDate;
+            const venue = matchedTest.venue || 'Online';
+
+            // Check if test date changed or is newly set
+            if (app.testDate !== formattedDate || app.testPlatform !== venue) {
+              updatedCount++;
+              const newComment = {
+                id: `blog-auto-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+                text: `📢 Placement Blog Announcement: Test scheduled on ${formattedDate} • Venue: ${venue}.`,
+                createdAt: new Date().toISOString(),
+              };
+              return {
+                ...app,
+                testDate: formattedDate,
+                testPlatform: venue,
+                comments: [newComment, ...app.comments],
+                updatedAt: new Date().toISOString(),
+              };
+            }
+          }
+          return app;
+        });
+
+        if (updatedCount > 0) {
+          saveUserApplications(currentUser, updatedApps);
+          setApplications(updatedApps);
+          alert(
+            `🚨 Placement Blog Alert: New test dates & venues detected for ${updatedCount} applied companies!`
+          );
+        }
+      }
+      setLastBlogScanTime(
+        new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      );
+    } catch (err) {
+      console.error('[Blog Auto-Scan Error]:', err);
+    } finally {
+      setIsBlogScanning(false);
+    }
+  };
+
+  // 20-minute recurring auto-scanner for IIT Bombay Placement Blog
+  useEffect(() => {
+    if (!currentUser || !isLoaded) return;
+    const token = getIITBToken(currentUser);
+    if (!token) return;
+
+    // Scan once on startup / login
+    scanPlacementBlog(true);
+
+    // Schedule every 20 minutes (20 * 60 * 1000 ms)
+    const interval = setInterval(() => {
+      console.log(
+        '[Auto-Scanner] Scanning Placement Blog (every 20 minutes) for',
+        currentUser
+      );
+      scanPlacementBlog(true);
+    }, 20 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [currentUser, isLoaded]);
 
   // Toggle Test Given Checkbox
   const handleToggleTestGiven = (id: string) => {
@@ -455,11 +551,14 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Upcoming Tests Alert Banner */}
+        {/* Upcoming Tests Alert Banner with 20-min Auto-Scanner */}
         <UpcomingTestsBanner
           applications={applications}
           onOpenBlogModal={() => setIsBlogModalOpen(true)}
           onToggleTestGiven={handleToggleTestGiven}
+          isScanning={isBlogScanning}
+          onTriggerAutoScan={() => scanPlacementBlog(false)}
+          lastScannedTime={lastBlogScanTime}
         />
 
         {/* Stats Section */}

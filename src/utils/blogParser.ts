@@ -213,3 +213,4 @@ export function matchBlogAnnouncementsWithApplications(
 
   return { matchedAnnouncements: matched, unmatchedAnnouncements: unmatched };
 }
+
